@@ -1,4 +1,4 @@
-year,price_index,Total price (nominal),Total price (real 2026),"Taxes, levies & surcharges (nominal)","Taxes, levies & surcharges (real 2026)",Grid fees (nominal),Grid fees (real 2026),Procurement & sales (nominal),Procurement & sales (real 2026)
+Jahr,Preisindex,Strompreis (nominal),Strompreis (real 2026),"Steuern, Abgaben, Umlagen (nominal)","Steuern, Abgaben, Umlagen (real 2026)",Netznutzungsentgelte (nominal),Netznutzungsentgelte (real 2026),"Arbeitspreise: Strombeschaffung, Vertrieb (nominal)","Arbeitspreise: Strombeschaffung, Vertrieb (real 2026)"
 1998,0.8397,17.1,28.89,4.0,6.76,,,,
 2010,1.0,23.7,33.63,9.7,13.76,5.8,8.23,8.2,11.63
 2011,1.022,25.2,34.98,11.3,15.69,5.9,8.19,8.0,11.11

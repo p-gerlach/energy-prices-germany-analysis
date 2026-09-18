@@ -21,13 +21,21 @@ every year from 2010 to 2026. Each row gives the total household price in cents
 per kilowatt-hour, the three cost components that add up to that total, and the
 consumer price inflation rate for the year.
 
-| Column in the workbook | Used here as |
-| --- | --- |
-| `Strompreis in ct/kWh` | Total price |
-| `Steuern, Abgaben, Umlagen (ct/kWh)` | Taxes, levies & surcharges |
-| `Netznutzungsentgelte (ct/kWh)` | Grid fees |
-| `Strombeschaffung, Vertrieb (ct/kWh)` | Procurement & sales |
-| `Inflationsrate` | Yearly consumer price inflation |
+The charts are labelled in German throughout. Each column of the workbook maps
+to one chart label:
+
+| Column in the workbook | Chart label | In English |
+| --- | --- | --- |
+| `Strompreis in ct/kWh` | Strompreis | Total price |
+| `Steuern, Abgaben, Umlagen (ct/kWh)` | Steuern, Abgaben, Umlagen | Taxes, levies and surcharges |
+| `Netznutzungsentgelte (ct/kWh)` | Netznutzungsentgelte | Grid fees |
+| `Strombeschaffung, Vertrieb (ct/kWh)` | Arbeitspreise: Strombeschaffung, Vertrieb | Procurement and sales |
+| `Inflationsrate` | not plotted | Yearly consumer price inflation |
+
+Where a full label would run off the edge of a chart, a shortened form appears
+directly on the line (`Steuern & Umlagen`, `Netzentgelte`, `Beschaffung`). The
+legend always carries the full name, so nothing is lost. Numbers use German
+formatting: a decimal comma and a space before the percent sign.
 
 ## How the inflation adjustment works
 

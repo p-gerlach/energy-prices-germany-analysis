@@ -1,22 +1,24 @@
 """
-German household electricity prices, adjusted for inflation.
+Strompreise in Deutschland, inflationsbereinigt.
 
-Reads data/Strompreise_deutschland.xlsx and writes three charts plus a CSV
-of the computed numbers into output/.
+Liest data/Strompreise_deutschland.xlsx und schreibt drei Grafiken sowie eine
+CSV-Datei mit den berechneten Zahlen nach output/.
 
-The workbook has one row per year with:
-  - the total electricity price in ct/kWh
-  - three cost components that add up to that total
-  - the consumer price inflation rate for that year
+Die Arbeitsmappe enthaelt eine Zeile je Jahr mit:
+  - dem gesamten Strompreis in ct/kWh
+  - drei Kostenbestandteilen, die zusammen diesen Preis ergeben
+  - der Verbraucherpreis-Inflationsrate des Jahres
 
-Run it with:
+Aufruf:
     python analyze_energy_prices.py
+
+Die Beschriftung der Grafiken ist durchgehend deutsch; die Kommentare im Code
+sind englisch, damit sie zu den Bibliotheksnamen passen.
 """
 
 from pathlib import Path
 
 import matplotlib
-import matplotlib.ticker
 
 matplotlib.use("Agg")  # render to files, no interactive window needed
 
@@ -63,18 +65,52 @@ INK_MUTED = "#8a8a84"
 SURFACE = "#fcfcfb"
 GRIDLINE = "#e4e3df"
 
-# Column names as they appear in the workbook, mapped to short English labels.
+# --------------------------------------------------------------------------
+# Labels
+# --------------------------------------------------------------------------
+
+TOTAL_LABEL = "Strompreis"
+
+# Column in the workbook -> label used in the charts.
 COMPONENTS = {
-    "Steuern, Abgaben, Umlagen (ct/kWh)": "Taxes, levies & surcharges",
-    "Netznutzungsentgelte (ct/kWh)": "Grid fees",
-    "Strombeschaffung, Vertrieb (ct/kWh)": "Procurement & sales",
+    "Steuern, Abgaben, Umlagen (ct/kWh)": "Steuern, Abgaben, Umlagen",
+    "Netznutzungsentgelte (ct/kWh)": "Netznutzungsentgelte",
+    "Strombeschaffung, Vertrieb (ct/kWh)": "Arbeitspreise: Strombeschaffung, Vertrieb",
 }
+
 COMPONENT_COLORS = {
-    "Taxes, levies & surcharges": COLOR_TAXES,
-    "Grid fees": COLOR_GRID,
-    "Procurement & sales": COLOR_PROCUREMENT,
+    "Steuern, Abgaben, Umlagen": COLOR_TAXES,
+    "Netznutzungsentgelte": COLOR_GRID,
+    "Arbeitspreise: Strombeschaffung, Vertrieb": COLOR_PROCUREMENT,
 }
-TOTAL_LABEL = "Total price"
+
+# Short forms for the labels that sit directly on the lines, where the full
+# names would run off the edge. The legend always carries the full name.
+SHORT_LABELS = {
+    "Strompreis": "Strompreis",
+    "Steuern, Abgaben, Umlagen": "Steuern & Umlagen",
+    "Netznutzungsentgelte": "Netzentgelte",
+    "Arbeitspreise: Strombeschaffung, Vertrieb": "Beschaffung",
+}
+
+# Wrapped forms for the x-axis of the bar chart.
+AXIS_LABELS = {
+    "Strompreis": "Strompreis\n(gesamt)",
+    "Steuern, Abgaben, Umlagen": "Steuern, Abgaben,\nUmlagen",
+    "Netznutzungsentgelte": "Netznutzungs-\nentgelte",
+    "Arbeitspreise: Strombeschaffung, Vertrieb": "Arbeitspreise:\nBeschaffung, Vertrieb",
+}
+
+
+def de_number(value: float, decimals: int = 1) -> str:
+    """Format a number the German way, with a decimal comma."""
+    return f"{value:.{decimals}f}".replace(".", ",")
+
+
+def de_percent(value: float, decimals: int = 0, signed: bool = False) -> str:
+    """Format a percentage the German way: decimal comma, space before the sign."""
+    text = f"{value:+.{decimals}f}" if signed else f"{value:.{decimals}f}"
+    return text.replace("-", "−").replace(".", ",") + " %"
 
 
 # --------------------------------------------------------------------------
@@ -90,11 +126,11 @@ def load_data() -> pd.DataFrame:
     raw = raw.loc[:, ~raw.columns.astype(str).str.startswith("Unnamed")]
 
     df = pd.DataFrame(index=raw["Jahr"].astype(int))
-    df.index.name = "year"
+    df.index.name = "Jahr"
     df[TOTAL_LABEL] = raw["Strompreis in ct/kWh"].to_numpy(dtype=float)
 
-    for german_name, english_label in COMPONENTS.items():
-        df[english_label] = raw[german_name].to_numpy(dtype=float)
+    for column_name, label in COMPONENTS.items():
+        df[label] = raw[column_name].to_numpy(dtype=float)
 
     # "0,8 %" -> 0.008. German decimal comma, percent sign, non-breaking spaces.
     inflation_text = (
@@ -107,7 +143,7 @@ def load_data() -> pd.DataFrame:
     )
     # .to_numpy() matters here: `raw` is numbered 0, 1, 2... while `df` is indexed
     # by year, and assigning a Series would line the two indexes up and give NaN.
-    df["inflation_rate"] = inflation_text.to_numpy(dtype=float) / 100.0
+    df["Inflationsrate"] = inflation_text.to_numpy(dtype=float) / 100.0
 
     return df
 
@@ -127,7 +163,7 @@ def build_price_index(df: pd.DataFrame) -> pd.Series:
     workbook has no inflation rates for 1999-2009.
     """
     years = list(df.index)
-    chain_start = min(y for y in years if y >= 2010)
+    chain_start = min(year for year in years if year >= 2010)
 
     index = pd.Series(index=df.index, dtype=float)
     index.loc[chain_start] = 1.0
@@ -137,7 +173,7 @@ def build_price_index(df: pd.DataFrame) -> pd.Series:
         if year <= chain_start:
             continue
         # The rate listed for a year is that year's rise over the year before.
-        index.loc[year] = index.loc[previous_year] * (1.0 + df.loc[year, "inflation_rate"])
+        index.loc[year] = index.loc[previous_year] * (1.0 + df.loc[year, "Inflationsrate"])
         previous_year = year
 
     for year in years:
@@ -160,7 +196,7 @@ def to_real_prices(df: pd.DataFrame, price_index: pd.Series) -> pd.DataFrame:
 
 
 def style_axes(ax, ylabel: str) -> None:
-    """Recessive grid and axes, so the data lines stay the loudest thing."""
+    """Recessive grid and axes, so the data stays the loudest thing."""
     ax.set_facecolor(SURFACE)
     ax.figure.set_facecolor(SURFACE)
     ax.set_ylabel(ylabel, color=INK_SECONDARY, fontsize=10.5, labelpad=10)
@@ -178,7 +214,8 @@ def add_titles(fig, title: str, subtitle: str) -> None:
 
 
 def add_source_note(fig, note: str) -> None:
-    fig.text(0.055, 0.025, note, fontsize=8.5, color=INK_MUTED, va="bottom")
+    fig.text(0.055, 0.022, note, fontsize=8.5, color=INK_MUTED,
+             va="bottom", linespacing=1.5)
 
 
 # --------------------------------------------------------------------------
@@ -188,21 +225,16 @@ def add_source_note(fig, note: str) -> None:
 
 def chart_real_price_lines(real: pd.DataFrame, output_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(12, 7))
-    style_axes(ax, f"Real price in ct/kWh ({BASE_YEAR} money)")
+    style_axes(ax, f"Realer Preis in ct/kWh (Preisbasis {BASE_YEAR})")
 
     years = np.array(real.index, dtype=float)
     chain_years = years[years >= 2010]
 
-    # Short names for the labels sitting at the right edge; the legend carries
-    # the full ones, so there is no room to lose here.
-    series_to_draw = [(TOTAL_LABEL, "Total", COLOR_TOTAL, 2.6)] + [
-        (label, short, COMPONENT_COLORS[label], 2.0)
-        for label, short in zip(
-            COMPONENTS.values(), ["Taxes & levies", "Grid fees", "Procurement"]
-        )
+    series_to_draw = [(TOTAL_LABEL, COLOR_TOTAL, 2.6)] + [
+        (label, COMPONENT_COLORS[label], 2.0) for label in COMPONENTS.values()
     ]
 
-    for label, _short, color, width in series_to_draw:
+    for label, color, width in series_to_draw:
         values = real[label]
         ax.plot(
             chain_years, values.loc[values.index >= 2010],
@@ -216,13 +248,13 @@ def chart_real_price_lines(real: pd.DataFrame, output_path: Path) -> None:
                 markeredgecolor=SURFACE, markeredgewidth=1.4, zorder=3,
             )
             ax.annotate(
-                f"{values.loc[1998]:.1f}", xy=(1998, values.loc[1998]),
+                de_number(values.loc[1998]), xy=(1998, values.loc[1998]),
                 xytext=(-13, 0), textcoords="offset points",
                 color=color, fontsize=9.5, fontweight="bold", ha="right", va="center",
             )
 
     # Axis limits have to be fixed before anything is positioned relative to them.
-    ax.set_xlim(1996.0, 2032.0)
+    ax.set_xlim(1996.0, 2034.0)
     tick_years = [1998] + list(range(2010, BASE_YEAR + 1, 2))
     ax.set_xticks(tick_years)
     ax.set_xticklabels([str(year) for year in tick_years])
@@ -231,27 +263,24 @@ def chart_real_price_lines(real: pd.DataFrame, output_path: Path) -> None:
     # Shade the stretch the workbook has no data for, so the gap is explicit.
     ax.axvspan(1999.0, 2009.2, color="#f2f1ed", zorder=0)
     ax.text(
-        2004.1, ax.get_ylim()[1] * 0.50, "no data\n1999-2009",
+        2004.1, ax.get_ylim()[1] * 0.50, "keine Daten\n1999–2009",
         ha="center", va="center", fontsize=10, color=INK_MUTED, linespacing=1.5,
     )
 
     # Direct labels at the right edge, nudged apart so they never overlap.
     label_positions = sorted(
-        (
-            (real.loc[BASE_YEAR, full_label], short, color)
-            for full_label, short, color, _ in series_to_draw
-        ),
+        ((real.loc[BASE_YEAR, label], label, color) for label, color, _ in series_to_draw),
         key=lambda item: item[0],
     )
     minimum_gap = (ax.get_ylim()[1] - ax.get_ylim()[0]) * 0.062
     placed_y: list[float] = []
-    for value, short, color in label_positions:
+    for value, label, color in label_positions:
         y = value if not placed_y else max(value, placed_y[-1] + minimum_gap)
         placed_y.append(y)
         ax.annotate(
-            f"{short}  {value:.1f}",
+            f"{SHORT_LABELS[label]}  {de_number(value)}",
             xy=(BASE_YEAR, value), xytext=(BASE_YEAR + 0.6, y),
-            color=color, fontsize=10.5, fontweight="bold", va="center",
+            color=color, fontsize=10, fontweight="bold", va="center",
         )
 
     ax.legend(
@@ -261,16 +290,17 @@ def chart_real_price_lines(real: pd.DataFrame, output_path: Path) -> None:
 
     add_titles(
         fig,
-        "Inflation-adjusted electricity prices in Germany",
-        f"Household price and its three cost components, in constant {BASE_YEAR} "
-        f"cents per kWh. 1998 shown separately: the data jumps to 2010.",
+        "Inflationsbereinigte Strompreise in Deutschland",
+        "Haushaltsstrompreis und seine drei Kostenbestandteile, in konstanten Cent je kWh "
+        f"(Preisbasis {BASE_YEAR}). 1998 steht für sich, da die Daten auf 2010 springen.",
     )
     add_source_note(
         fig,
-        "Source: Strompreise_deutschland.xlsx. Deflated with the yearly inflation rates in the "
-        "workbook; the 1998-2010 gap uses the Destatis consumer price index. 2026 is a forecast.",
+        "Quelle: Strompreise_deutschland.xlsx. Deflationiert mit den Inflationsraten der "
+        "Arbeitsmappe; die Lücke 1998–2010 überbrückt\nder Verbraucherpreisindex "
+        "des Statistischen Bundesamtes. 2026 ist eine Prognose.",
     )
-    fig.subplots_adjust(left=0.075, right=0.985, top=0.845, bottom=0.10)
+    fig.subplots_adjust(left=0.075, right=0.985, top=0.845, bottom=0.145)
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 
@@ -287,13 +317,13 @@ def chart_share_columns(df: pd.DataFrame, output_path: Path) -> None:
     prices, because inflation scales every component by the same factor.
     """
     fig, ax = plt.subplots(figsize=(13, 7))
-    style_axes(ax, "Share of the total electricity price")
+    style_axes(ax, "Anteil am gesamten Strompreis")
 
     years = list(df.index)
     x_positions = np.arange(len(years))
     bar_width = 0.72
 
-    taxes_label, grid_label, procurement_label = list(COMPONENTS.values())
+    taxes_label = list(COMPONENTS.values())[0]
 
     shares = pd.DataFrame(index=df.index)
     for label in COMPONENTS.values():
@@ -305,8 +335,7 @@ def chart_share_columns(df: pd.DataFrame, output_path: Path) -> None:
 
     bottoms = np.zeros(len(years))
     for label in COMPONENTS.values():
-        heights = shares[label].to_numpy(dtype=float)
-        heights = np.nan_to_num(heights, nan=0.0)
+        heights = np.nan_to_num(shares[label].to_numpy(dtype=float), nan=0.0)
         ax.bar(
             x_positions, heights, bottom=bottoms, width=bar_width,
             color=COMPONENT_COLORS[label], label=label,
@@ -316,7 +345,7 @@ def chart_share_columns(df: pd.DataFrame, output_path: Path) -> None:
         for x, height, bottom in zip(x_positions, heights, bottoms):
             if height >= 9:
                 ax.text(
-                    x, bottom + height / 2, f"{height:.0f}",
+                    x, bottom + height / 2, de_percent(height),
                     ha="center", va="center", fontsize=8.5,
                     color="#ffffff", fontweight="bold", zorder=4,
                 )
@@ -329,38 +358,44 @@ def chart_share_columns(df: pd.DataFrame, output_path: Path) -> None:
     )
     ax.text(
         index_1998, shares.loc[1998, taxes_label] + combined_1998 / 2,
-        f"{combined_1998:.0f}", ha="center", va="center", fontsize=8.5,
+        de_percent(combined_1998), ha="center", va="center", fontsize=8.5,
         color="#ffffff", fontweight="bold", zorder=4,
     )
 
     ax.set_xticks(x_positions)
-    ax.set_xticklabels([str(y) for y in years], rotation=0, fontsize=9)
+    ax.set_xticklabels([str(year) for year in years], fontsize=9)
     ax.set_ylim(0, 100)
     ax.set_yticks(range(0, 101, 20))
-    ax.set_yticklabels([f"{t}%" for t in range(0, 101, 20)])
+    ax.set_yticklabels([de_percent(tick) for tick in range(0, 101, 20)])
 
-    handles = [Patch(facecolor=COMPONENT_COLORS[label], label=label) for label in COMPONENTS.values()]
+    handles = [
+        Patch(facecolor=COMPONENT_COLORS[label], label=label)
+        for label in COMPONENTS.values()
+    ]
     handles.append(
-        Patch(facecolor=COLOR_GRID, hatch="//", alpha=0.8,
-              label="Grid fees + procurement (1998, reported together)")
+        Patch(
+            facecolor=COLOR_GRID, hatch="//", alpha=0.8,
+            label="Netznutzungsentgelte + Beschaffung (1998 zusammen ausgewiesen)",
+        )
     )
     ax.legend(
-        handles=handles, loc="lower center", bbox_to_anchor=(0.5, -0.185),
+        handles=handles, loc="lower center", bbox_to_anchor=(0.5, -0.205),
         ncol=2, frameon=False, fontsize=10, labelcolor=INK_SECONDARY,
     )
 
     add_titles(
         fig,
-        "What you actually pay for, year by year",
-        "Each component as a percentage of the total electricity price. "
-        "Columns always add up to 100%, so the shifting split is the story.",
+        "Wofür Sie tatsächlich bezahlen, Jahr für Jahr",
+        "Jeder Bestandteil als Anteil am gesamten Strompreis. Die Säulen ergeben immer "
+        "100 %, entscheidend ist die Verschiebung zwischen ihnen.",
     )
     add_source_note(
         fig,
-        "Source: Strompreise_deutschland.xlsx. Shares are the same before and after inflation "
-        "adjustment, because inflation scales every component equally. 2026 is a forecast.",
+        "Quelle: Strompreise_deutschland.xlsx. Die Anteile sind vor und nach der "
+        "Inflationsbereinigung identisch, da die Inflation alle Bestandteile\n"
+        "gleich skaliert. 2026 ist eine Prognose.",
     )
-    fig.subplots_adjust(left=0.075, right=0.985, top=0.845, bottom=0.20)
+    fig.subplots_adjust(left=0.075, right=0.985, top=0.845, bottom=0.21)
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 
@@ -372,7 +407,7 @@ def chart_share_columns(df: pd.DataFrame, output_path: Path) -> None:
 
 def chart_real_change_summary(real: pd.DataFrame, output_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 6))
-    style_axes(ax, f"Real change 2010 to {BASE_YEAR}")
+    style_axes(ax, f"Reale Veränderung 2010 bis {BASE_YEAR}")
 
     labels = [TOTAL_LABEL] + list(COMPONENTS.values())
     changes = [
@@ -390,7 +425,7 @@ def chart_real_change_summary(real: pd.DataFrame, output_path: Path) -> None:
         offset = 1.6 if change >= 0 else -1.6
         ax.text(
             bar.get_x() + bar.get_width() / 2, change + offset,
-            f"{change:+.0f}%", ha="center",
+            de_percent(change, signed=True), ha="center",
             va="bottom" if change >= 0 else "top",
             fontsize=12, fontweight="bold", color=INK_PRIMARY, zorder=4,
         )
@@ -398,19 +433,19 @@ def chart_real_change_summary(real: pd.DataFrame, output_path: Path) -> None:
     ax.axhline(0, color=INK_SECONDARY, linewidth=1.1, zorder=3)
     ax.spines["bottom"].set_visible(False)  # the zero line is the baseline here
     ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels([label.replace(" & ", " &\n") for label in labels], fontsize=10)
-    ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(decimals=0))
+    ax.set_xticklabels([AXIS_LABELS[label] for label in labels], fontsize=9.5)
+    ax.yaxis.set_major_formatter(lambda value, _pos: de_percent(value))
     span = max(abs(min(changes)), abs(max(changes)))
     ax.set_ylim(min(0, min(changes)) - span * 0.25, max(0, max(changes)) + span * 0.25)
 
     add_titles(
         fig,
-        f"Real growth since 2010, after inflation",
-        f"Change in constant {BASE_YEAR} cents per kWh. Above zero means the component "
-        f"outpaced inflation.",
+        "Reales Wachstum seit 2010, nach Abzug der Inflation",
+        f"Veränderung in konstanten Cent je kWh (Preisbasis {BASE_YEAR}). Über null "
+        "heißt: stärker gestiegen als die allgemeine Inflation.",
     )
-    add_source_note(fig, "Source: Strompreise_deutschland.xlsx. 2026 is a forecast.")
-    fig.subplots_adjust(left=0.10, right=0.975, top=0.825, bottom=0.13)
+    add_source_note(fig, "Quelle: Strompreise_deutschland.xlsx. 2026 ist eine Prognose.")
+    fig.subplots_adjust(left=0.115, right=0.975, top=0.825, bottom=0.15)
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 
@@ -429,7 +464,7 @@ def main() -> None:
 
     # Write the computed numbers out so the charts can be checked against a table.
     table = pd.DataFrame(index=df.index)
-    table["price_index"] = price_index.round(4)
+    table["Preisindex"] = price_index.round(4)
     for label in [TOTAL_LABEL] + list(COMPONENTS.values()):
         table[f"{label} (nominal)"] = df[label].round(2)
         table[f"{label} (real {BASE_YEAR})"] = real[label].round(2)
@@ -440,11 +475,11 @@ def main() -> None:
     chart_share_columns(df, OUTPUT_DIR / "02_price_shares_columns.png")
     chart_real_change_summary(real, OUTPUT_DIR / "03_real_change_since_2010.png")
 
-    print(f"Wrote {csv_path.relative_to(PROJECT_DIR)}")
-    for name in sorted(p.name for p in OUTPUT_DIR.glob("*.png")):
-        print(f"Wrote output/{name}")
+    print(f"Geschrieben: {csv_path.relative_to(PROJECT_DIR)}")
+    for name in sorted(path.name for path in OUTPUT_DIR.glob("*.png")):
+        print(f"Geschrieben: output/{name}")
 
-    print(f"\nReal prices in {BASE_YEAR} cents per kWh:")
+    print(f"\nReale Preise in Cent je kWh (Preisbasis {BASE_YEAR}):")
     print(real.round(1).to_string())
 
 
