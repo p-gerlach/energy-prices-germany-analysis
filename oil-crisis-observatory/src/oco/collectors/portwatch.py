@@ -68,6 +68,8 @@ class PortWatchCollector(Collector):
     def query_range(self, client, portid: str, start: date, date_type: str, page_size: int, result: RunResult) -> tuple[list[dict], list[bytes]]:
         if date_type == "esriFieldTypeDate":
             where = f"portid='{portid}' AND date >= TIMESTAMP '{start:%Y-%m-%d} 00:00:00'"
+        elif date_type == "esriFieldTypeDateOnly":
+            where = f"portid='{portid}' AND date >= DATE '{start:%Y-%m-%d}'"
         else:
             where = f"portid='{portid}' AND date >= '{start:%Y-%m-%d}'"
         feats, bodies = [], []
@@ -158,3 +160,39 @@ def _parse_date(v, date_type: str, attrs: dict) -> date:
 
 def dumps(x) -> str:
     return json.dumps(x, default=str)
+
+
+class PortWatchPortsCollector(PortWatchCollector):
+    """Daily port calls and estimated trade for configured ports (same anonymous IMF account, one approved layer)."""
+    key = "portwatch_ports"
+
+    def resolve_chokepoints(self, client, result=None):  # ports are configured by verified portid
+        return {p["slug"]: (p["portid"], p["name"]) for p in self.cfg["ports"]}
+
+    def collect(self, wh, result, mode="refresh", **kw):
+        attribution = self.ctx.policy.connector("portwatch").meta["attribution"].replace("chokepoint transit calls", "port calls and trade estimates")
+        groups = {p["slug"]: p["group"] for p in self.cfg["ports"]}
+        with self.ctx.client(self.connector) as client:
+            meta = self.layer_metadata(client, result)
+            date_type = meta["fields"]["date"]
+            page = min(int(self.cfg.get("page_size", 1000)), meta["max_records"])
+            for slug, (portid, portname) in self.resolve_chokepoints(client).items():
+                start = (date.fromisoformat(self.cfg.get("backfill_start", "2024-01-01")) if mode == "backfill"
+                         else date.today() - timedelta(days=int(self.cfg.get("revision_overlap_days", 30))))
+                feats, bodies = self.query_range(client, portid, start, date_type, page, result)
+                shas = [wh.store_raw("portwatch", b, url=f"{self.layer}/query?portid={portid}&page={i}", content_type="application/json", ext="json")
+                        for i, b in enumerate(bodies)]
+                result.raw.extend(shas)
+                by_day = {_parse_date(a["date"], date_type, a): a for a in feats}
+                for field, fmeta in self.cfg["fields"].items():
+                    sid = f"portwatch.port.{slug}.{field}"
+                    wh.upsert_series(sid, source="IMF PortWatch", source_key=f"{portid}:{field}", name=f"{portname}: {fmeta['name']}",
+                                     geography=portname, product="port", unit=fmeta["unit"], frequency="daily",
+                                     description=f"PortWatch daily port data ({groups[slug].replace('_', ' ')} port)",
+                                     metadata={"attribution": attribution, "portid": portid, "group": groups[slug],
+                                               "limitations": ["AIS-based estimates", "export volume is modelled from vessel draught, not customs data",
+                                                               "port calls are not barrels"]})
+                    rows = [{"obs_start": d, "obs_end": d, "value": None if a.get(field) is None else float(a[field])} for d, a in sorted(by_day.items())]
+                    for d in by_day:
+                        result.saw(d)
+                    result.add(sid, wh.ingest_observations(sid, rows, raw_sha256=shas[0] if shas else None))

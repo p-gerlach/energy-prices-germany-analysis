@@ -47,6 +47,22 @@ if con is None:
     st.error("No published snapshot yet. Run `oco refresh` (live data) or `oco demo-build` (synthetic) first.")
     st.stop()
 mode = (con.execute("SELECT value FROM meta WHERE key='mode'").fetchone() or [None])[0]
+
+
+@st.fragment(run_every="60s")
+def _auto_refresh():
+    """Every 60 s: if the scheduler published a new snapshot, rerun the whole page with the new data."""
+    m = paths.snapshot.stat().st_mtime if paths.snapshot.exists() else 0
+    if "snap_mtime" not in st.session_state:
+        st.session_state.snap_mtime = m
+    elif m != st.session_state.snap_mtime:
+        st.session_state.snap_mtime = m
+        st.rerun()
+    st.caption(f"Data snapshot from {datetime.fromtimestamp(m, timezone.utc).astimezone(BERLIN):%Y-%m-%d %H:%M %Z} · "
+               "checks for new data every 60 s (new data arrive only while `oco run-scheduler` is running).")
+
+
+_auto_refresh()
 if DEMO or mode == "DEMO_SYNTHETIC":
     st.error("SYNTHETIC DEMONSTRATION DATA — NOT LIVE. Nothing on these pages describes real markets.", icon="⚠️")
 
@@ -62,6 +78,14 @@ def berlin(ts) -> str:
 
 def series_list(where: str = "1=1") -> pd.DataFrame:
     return con.execute(f"SELECT series_id, name, unit, frequency, source FROM series WHERE {where} ORDER BY series_id").df()
+
+
+_chart_n = [0]
+
+
+def _key(prefix="ch"):
+    _chart_n[0] += 1
+    return f"{prefix}{_chart_n[0]}"
 
 
 def line_chart(sids: list[str], title: str, start=None, event=None, baseline=None, rolling7=False):
@@ -95,7 +119,7 @@ def line_chart(sids: list[str], title: str, start=None, event=None, baseline=Non
         fig.add_vline(x=pd.Timestamp(event), line_dash="dash", line_color="#52514e")
     fig.update_layout(title=title, height=380, margin=dict(l=10, r=10, t=40, b=10), yaxis_title=next(iter(units), ""),
                       hovermode="x unified", legend=dict(orientation="h", y=-0.15), plot_bgcolor="#fcfcfb")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=_key())
 
 
 def export_button(sids, title, key, **kw):
@@ -108,7 +132,17 @@ def export_button(sids, title, key, **kw):
             st.error(f"{type(e).__name__}: {e}")
 
 
-tabs = st.tabs(["What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
+tabs = st.tabs(["Story finder & analyses", "What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
+with tabs[0]:
+    page = paths.exports / "observatory.html"
+    if page.exists():
+        import streamlit.components.v1 as components
+        st.caption("Self-contained research page (story finder, live pumps, bypass ports, rockets & feathers, margins, tax take, imports, household costs). "
+                   "Rebuilt automatically after each analysis run.")
+        components.html(page.read_text(encoding="utf-8"), height=1400, scrolling=True)
+    else:
+        st.info("No research page yet — run `oco analyse` (or `oco build-page`).")
+tabs = tabs[1:]
 
 # ------------------------------------------------------------------------------------- What changed
 with tabs[0]:
@@ -194,7 +228,7 @@ with tabs[2]:
         for i, (g, gdf) in enumerate(snaps.groupby("comparable_group")):
             fig.add_trace(go.Scatter(x=gdf["acquisition_start"], y=gdf["candidate_count"], mode="markers", name=f"group {g}", marker=dict(size=10, color=COLORS[i % 3])))
         fig.update_layout(height=300, yaxis_title="candidate vessels in one snapshot (count)", plot_bgcolor="#fcfcfb")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=_key())
 
 # ------------------------------------------------------------------------------------- Fuel prices
 with tabs[3]:
@@ -293,7 +327,7 @@ with tabs[5]:
             fig.add_trace(go.Scatter(x=[w, e, e, w, w], y=[s, s, n, n, s], mode="lines", name=f["properties"]["id"]))
     fig.update_layout(height=380, xaxis_title="longitude", yaxis_title="latitude", plot_bgcolor="#fcfcfb",
                       yaxis=dict(scaleanchor="x"), title="Study polygons on a blank lon/lat plane (no map tiles)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=_key())
     unverified = [f["properties"]["name"] for f in facs if not f["properties"].get("verified")]
     if unverified:
         st.warning("Facilities without a verified boundary (no thermal/imagery analysis is run for them): " + ", ".join(unverified))
@@ -312,7 +346,7 @@ with tabs[5]:
         for i, (fid, g) in enumerate(te.groupby("facility_id")):
             fig.add_trace(go.Scatter(x=g["start_at"], y=g["max_frp"], mode="markers", name=fid, text=g["classification"], marker=dict(color=COLORS[i % 3], size=9)))
         fig.update_layout(height=280, yaxis_title="max FRP per event (MW)", title="Thermal timeline", plot_bgcolor="#fcfcfb")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=_key())
     st.markdown("**Before/after comparisons (Sentinel-2)**")
     comps = con.execute("SELECT * FROM comparisons ORDER BY created_at DESC").df()
     if comps.empty:

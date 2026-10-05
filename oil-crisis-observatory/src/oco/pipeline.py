@@ -26,6 +26,7 @@ def make_context(paths: Paths) -> Context:
 
 def refresh(ctx: Context, keys: list[str], mode: str = "refresh", analyse_after: bool = True, **kw) -> dict:
     results = {}
+    analysed = False
     with Warehouse.writer(ctx.paths) as wh:
         for k in keys:
             col = registry.get(ctx, k)
@@ -35,8 +36,13 @@ def refresh(ctx: Context, keys: list[str], mode: str = "refresh", analyse_after:
             nr = next_expected_release(k, cfg, utcnow())
             if nr:
                 ctx.state.update_health(k, next_expected_release=nr)
-        if analyse_after and any(r.status == "ok" for r in results.values()):
+        # analyse only when stored observations actually changed (e.g. not on every 10-minute pump poll)
+        changed = any(r.status == "ok" and (r.counts["new"] or r.counts["revised"]) for r in results.values() if hasattr(r, "counts"))
+        if analyse_after and changed:
             results["_analysis"] = analyse_wh(ctx, wh)
+            analysed = True
+    if analysed:
+        rebuild_page(ctx)
     return results
 
 
@@ -44,6 +50,8 @@ def analyse_wh(ctx: Context, wh: Warehouse, as_of: datetime | None = None) -> di
     out = {}
     if as_of is None:
         out["derived"] = {k: v for k, v in indicators.compute_derived(wh).items()}
+        from .analysis import extras
+        out["extras"] = extras.compute_all(wh)
     out["anomalies"] = anomalies.run_anomalies(wh, as_of=as_of)
     if as_of is None:
         from .satellite import thermal
@@ -59,9 +67,25 @@ def analyse_wh(ctx: Context, wh: Warehouse, as_of: datetime | None = None) -> di
     return out
 
 
+def rebuild_page(ctx: Context):
+    """Regenerate the self-contained research page from the freshly published snapshot (never fatal)."""
+    try:
+        from .storage.warehouse import open_snapshot
+        from .web.page import build_page
+        con = open_snapshot(ctx.paths)
+        if con is not None:
+            build_page(con, ctx.state, ctx.paths.exports / "observatory.html", demo=ctx.paths.demo)
+            con.close()
+    except Exception as e:  # noqa: BLE001
+        ctx.state.log(None, "WARN", f"research page not rebuilt: {type(e).__name__}: {e}")
+
+
 def analyse(ctx: Context, as_of: datetime | None = None) -> dict:
     with Warehouse.writer(ctx.paths) as wh:
-        return analyse_wh(ctx, wh, as_of)
+        out = analyse_wh(ctx, wh, as_of)
+    if as_of is None:
+        rebuild_page(ctx)
+    return out
 
 
 # ------------------------------------------------------------------------------------------

@@ -43,6 +43,7 @@ Open `.env` and fill in what you have. Everything is optional: connectors withou
 | `OCO_CONTACT_EMAIL` | polite User-Agent (needed for SEC EDGAR) | your email |
 | `EIA_API_KEY` | Brent/WTI, US stocks, refinery utilisation | https://www.eia.gov/opendata/register.php: enter your email; the key arrives by email |
 | `FIRMS_MAP_KEY` | NASA thermal detections near refineries | https://firms.modaps.eosdis.nasa.gov/api/map_key/: enter your email; the MAP_KEY arrives by email |
+| `TANKERKOENIG_API_KEY` | live German pump prices (every 10 minutes, ~100 stations in 10 cities) | https://creativecommons.tankerkoenig.de/: request a free personal key; data is CC BY 4.0 (MTS-K). The public demo key is refused |
 | `CDSE_USERNAME` / `CDSE_PASSWORD` | raw Sentinel-1/-2 downloads (username = the **e-mail address** you registered with) | https://dataspace.copernicus.eu/: "Register" creates a free **General User** account. Do **not** buy or activate processing units, Sentinel Hub plans or paid extensions; the app only uses raw downloads |
 
 The app will **never** register for you, read cloud or billing credentials (AWS, Google, ArcGIS…), or ask for
@@ -75,6 +76,24 @@ uv run oco dashboard               # opens http://127.0.0.1:8501 ; stop with Ctr
 | Export any chart | `uv run oco export --series eia.brent_spot,eia.wti_spot --title "Brent vs WTI" --start 2026-01-01` |
 | Rule backtest (alert frequency) | `uv run oco backtest --series eia.brent_spot --rule price_daily --start 2025-01-01 --end 2025-12-31` |
 | Re-enable a stopped connector after reviewing why | `uv run oco connectors reset portwatch` |
+| "What is unusual this week?" digest | `uv run oco digest` (Markdown story list from current alerts and analyses) |
+| Rebuild the research page | `uv run oco build-page` → `data/exports/observatory.html` (also rebuilt after every `analyse`) |
+| Pick the Tankerkönig station panel (once, after adding the key) | `uv run oco tankerkoenig build-panel` |
+
+### The research page (charts that always load)
+
+`data/exports/observatory.html` is a single file with **no external resources**: the charts are drawn as SVG by a
+small built-in script, so they show offline, inside the dashboard, and when the file is shared. It contains the story
+finder plus these sections: market, Hormuz shipping, German fuel prices, live pumps (Tankerkönig), bypass ports
+(Yanbu / Fujairah vs inside-Gulf terminals), rockets & feathers (asymmetric pass-through test), refining margins
+(EIA crack spreads), tax take per litre, and Germany's crude imports & household energy prices (Eurostat).
+The dashboard's first tab embeds it and reloads by itself when new data is published.
+
+### Activating live pump prices
+
+1. Put your key in `.env` as `TANKERKOENIG_API_KEY=...`
+2. `uv run oco tankerkoenig build-panel` (one-off station list for 10 cities)
+3. `uv run oco run-scheduler` — prices are read every 10 minutes while it runs; completed days become observations.
 
 Exports go to `data/exports/<card>/`: a 1920×1080 PNG and SVG per chart, a CSV of exactly the plotted
 observations (with version ids), a `.md` source and method note, and `card.md`/`card.json`.

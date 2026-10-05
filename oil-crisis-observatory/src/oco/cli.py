@@ -168,6 +168,22 @@ def stop_scheduler_cmd():
     click.echo(stop_scheduler(get_paths()))
 
 
+# ------------------------------------------------------------------ tankerkoenig
+@main.group()
+def tankerkoenig():
+    """Live German pump prices (Tankerkönig / MTS-K)."""
+
+
+@tankerkoenig.command("build-panel")
+def tk_build_panel():
+    """One-time: choose a fixed panel of stations around the configured city centres."""
+    from .collectors.tankerkoenig import TankerkoenigCollector
+
+    p = TankerkoenigCollector(_ctx(False)).build_panel()
+    from collections import Counter
+    click.echo(f"panel with {len(p['stations'])} stations: {dict(Counter(s['city'] for s in p['stations']))}")
+
+
 # ------------------------------------------------------------------ news
 @main.group()
 def news():
@@ -247,6 +263,36 @@ def export(c, card_id, series, title, start, event_date, baseline):
                                             event_date=event_date, baseline=b, demo=ctx.paths.demo), indent=2))
     else:
         raise click.UsageError("give --card-id or --series")
+
+
+@main.command()
+@click.pass_context
+def digest(c):
+    """Print the story finder (and save it to data/reports/story_finder.md)."""
+    from .analysis.digest import build_digest, digest_markdown
+    from .storage.warehouse import open_snapshot
+
+    ctx = _ctx(c.obj["demo"])
+    md = digest_markdown(build_digest(open_snapshot(ctx.paths)))
+    (ctx.paths.reports / "story_finder.md").write_text(md, encoding="utf-8")
+    click.echo(md)
+
+
+# ------------------------------------------------------------------ self-contained page
+@main.command("build-page")
+@click.option("--out", default=None, help="Output HTML path (default data/exports/observatory.html).")
+@click.pass_context
+def build_page_cmd(c, out):
+    """Write a fully self-contained HTML research page (charts work offline; no external requests)."""
+    from .storage.warehouse import open_snapshot
+    from .web.page import build_page
+
+    ctx = _ctx(c.obj["demo"])
+    con = open_snapshot(ctx.paths)
+    if con is None:
+        raise click.ClickException("no snapshot yet — run `oco refresh` first")
+    p = build_page(con, ctx.state, Path(out) if out else ctx.paths.exports / "observatory.html", demo=ctx.paths.demo)
+    click.echo(f"wrote {p} ({p.stat().st_size/1e6:.2f} MB). Open it in any browser; it needs no internet connection.")
 
 
 # ------------------------------------------------------------------ dashboard

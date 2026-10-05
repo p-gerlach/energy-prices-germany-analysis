@@ -64,7 +64,20 @@
   coastline and a reviewed sample exist. GDELT: still HTTP 429 from the cloud IP after the pause (paused again, no retry storm).
 - Not reachable from the cloud session: rss.dw.com, spiegel.de, aljazeera.com, www.eia.gov (not allow-listed), data.sec.gov (optional).
 
+## Second wave (2026-10-05)
+- Self-contained research page (`oco.web`, SVG charts, no CDN) embedded as the first dashboard tab; verified in a
+  browser with every external request blocked: 16 charts, 0 external requests, no overflow at phone width.
+- New connectors: Tankerkönig (code done, waiting for the user's key), Eurostat (nrg_ti_oilm, prc_hicp_minr, tested
+  anonymously), PortWatch daily ports, EIA product spot prices.
+- New analyses (`analysis/extras.py`): US crack spreads, VAT/other tax per litre, rockets & feathers (Newey-West),
+  Gulf import share, household HICP illustration; `analysis/digest.py` story finder.
+- Findings on live data: diesel week-0 pass-through 140 % on rises vs 58 % on falls since 2015 (p speed = 0.014,
+  no long-run difference); Yanbu exports surged Mar–Jul 2026 then collapsed Aug–Sep; VAT on diesel €0.389/L vs €0.256
+  (2025 average); US diesel crack ≈ $96/bbl vs $29 median; car fuel HICP +26 % vs 2025 (Aug 2026).
+- Tests: 102 passed.
+
 ## Outstanding / next
+- Tankerkönig: once the key arrives, `oco tankerkoenig build-panel` then `oco run-scheduler`.
 - If live Oil Bulletin / JODI layouts differ from the documented ones, collectors report `schema_changed`/`denied` —
   adjust parser or policy route after inspecting the real file (explicit review).
 - Real Sentinel-1/-2 products never processed (no credential/network); S1 detection remains experimental.

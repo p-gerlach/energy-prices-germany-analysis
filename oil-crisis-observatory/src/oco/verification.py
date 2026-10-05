@@ -28,7 +28,8 @@ from .storage.state import utcnow
 
 SOURCE_FOR_CONNECTOR = {"ecb": "ecb_fx", "eia": "eia_spot", "oil_bulletin": "oil_bulletin", "portwatch": "portwatch",
                         "gdelt": "gdelt", "rss": "rss", "jodi": "jodi", "firms": "firms", "cdse_catalogue": "cdse",
-                        "sec_edgar": "sec_edgar", "comext": "comext"}
+                        "sec_edgar": "sec_edgar", "comext": "comext",
+                        "tankerkoenig": "tankerkoenig", "eurostat": "eurostat"}
 
 
 def live_probe(ctx: Context, connector: str) -> tuple[bool, str, str]:

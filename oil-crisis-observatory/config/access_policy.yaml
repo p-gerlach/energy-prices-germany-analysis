@@ -164,6 +164,11 @@ connectors:
         methods: [GET]
         path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0(/query)?$'
         content_types: [application/json, text/plain]
+      # added 2026-10-05 after a reviewed listing of the same IMF account: daily port calls / trade estimates per port
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0(/query)?$'
+        content_types: [application/json, text/plain]
 
   gdelt:
     title: "GDELT DOC 2.0 API — public discovery endpoint (artlist)"
@@ -204,6 +209,42 @@ connectors:
       - {host: www.spiegel.de, methods: [GET], path_regex: '^/wirtschaft/index\.rss$', content_types: [application/rss+xml, application/xml, text/xml]}
       - {host: www.aljazeera.com, methods: [GET], path_regex: '^/xml/rss/all\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
       - {host: www.eia.gov, methods: [GET], path_regex: '^/rss/todayinenergy\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
+
+  tankerkoenig:
+    title: "Tankerkönig API — official German pump prices from the Markttransparenzstelle für Kraftstoffe (MTS-K)"
+    credential: tankerkoenig_api_key   # free key, user-supplied (e-mail registration)
+    credential_env: TANKERKOENIG_API_KEY
+    official_free_setup: "https://creativecommons.tankerkoenig.de/ (API-Key beantragen)"
+    zero_charge_evidence: "https://creativecommons.tankerkoenig.de/"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "CC BY 4.0 (stated in every API response) — attribution: Tankerkönig / MTS-K"
+    attribution: "Source: Tankerkönig (creativecommons.tankerkoenig.de), data: Markttransparenzstelle für Kraftstoffe (MTS-K), CC BY 4.0"
+    verification_status: documented_free
+    routes:
+      - host: creativecommons.tankerkoenig.de
+        methods: [GET]
+        path_regex: '^/json/(list|prices|detail)\.php$'
+        content_types: [application/json]
+
+  eurostat:
+    title: "Eurostat dissemination API — public statistics (imports by origin, HICP)"
+    credential: none
+    zero_charge_evidence: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Eurostat reuse policy — free reuse with attribution"
+    attribution: "Source: Eurostat"
+    verification_status: documented_free
+    routes:
+      - host: ec.europa.eu
+        methods: [GET]
+        path_regex: '^/eurostat/api/dissemination/statistics/1\.0/data/[A-Za-z0-9_]+$'
+        content_types: [application/json]
 
   jodi:
     title: "JODI Oil World Database — public CSV ZIP downloads"

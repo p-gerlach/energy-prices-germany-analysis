@@ -96,6 +96,43 @@ sources:
     revision_overlap_days: 30
     page_size: 1000
 
+  portwatch_ports:
+    connector: portwatch
+    enabled: true
+    frequency: daily
+    stale_after_days: 14
+    schedule: {kind: interval, every_min: 360}
+    layer_url: "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0"
+    # bypass = export routes that avoid the Strait of Hormuz; inside_gulf = terminals that need the strait
+    ports:
+      - {slug: yanbu, portid: port570, name: "Yanbu (King Fahd Port)", group: bypass}
+      - {slug: fujairah, portid: port362, name: "Fujairah", group: bypass}
+      - {slug: ras_tanura, portid: port1091, name: "Ras Tanura", group: inside_gulf}
+      - {slug: juaymah, portid: port526, name: "Juaymah", group: inside_gulf}
+      - {slug: mina_al_ahmadi, portid: port743, name: "Mina Al Ahmadi", group: inside_gulf}
+      - {slug: kharg, portid: port2164, name: "Kharg Island", group: inside_gulf}
+      - {slug: jebel_ali, portid: port744, name: "Jebel Ali", group: inside_gulf}
+    fields:
+      portcalls_tanker: {name: "tanker port calls", unit: "tanker port calls per day (AIS)"}
+      export_tanker: {name: "tanker export volume (estimate)", unit: "metric tonnes per day (PortWatch estimate, not measured cargo)"}
+    backfill_start: "2024-01-01"
+    revision_overlap_days: 30
+    page_size: 1000
+
+  eia_products:
+    connector: eia
+    enabled: true
+    frequency: daily
+    stale_after_days: 10
+    schedule: {kind: us_business_hours, tz: America/New_York, window: ["08:00", "18:00"], every_min: 120, otherwise_every_min: 1440}
+    route: petroleum/pri/spt
+    eia_frequency: daily
+    series:
+      - {id: eia.ulsd_ny_spot, facet: EER_EPD2DXL0_PF4_Y35NY_DPG, name: "NY Harbor ultra-low-sulfur diesel spot", unit: "USD per gallon", measure: price, geography: US East Coast, product: diesel}
+      - {id: eia.gasoline_ny_spot, facet: EER_EPMRU_PF4_Y35NY_DPG, name: "NY Harbor conventional gasoline (regular) spot", unit: "USD per gallon", measure: price, geography: US East Coast, product: gasoline}
+    backfill_start: "2019-01-01"
+    revision_overlap_days: 21
+
   gdelt:
     connector: gdelt
     enabled: true
@@ -125,6 +162,42 @@ sources:
       - {url: "https://www.aljazeera.com/xml/rss/all.xml", publisher: Al Jazeera, language: en}
       - {url: "https://www.eia.gov/rss/todayinenergy.xml", publisher: EIA Today in Energy, language: en}
     max_excerpt_chars: 300
+
+  tankerkoenig:
+    connector: tankerkoenig
+    enabled: true
+    frequency: intraday
+    stale_after_days: 2
+    schedule: {kind: interval, every_min: 10}   # provider asks for at most one price query per 5 minutes
+    # Fixed station panel: up to `per_city` stations within `radius_km` of each centre (built once with
+    # `oco tankerkoenig build-panel`). A SAMPLE panel, not the national average published by the Bundeskartellamt.
+    per_city: 10
+    radius_km: 5
+    cities:
+      - {name: Berlin, lat: 52.5200, lng: 13.4050}
+      - {name: Hamburg, lat: 53.5511, lng: 9.9937}
+      - {name: München, lat: 48.1351, lng: 11.5820}
+      - {name: Köln, lat: 50.9375, lng: 6.9603}
+      - {name: Frankfurt am Main, lat: 50.1109, lng: 8.6821}
+      - {name: Stuttgart, lat: 48.7758, lng: 9.1829}
+      - {name: Leipzig, lat: 51.3397, lng: 12.3731}
+      - {name: Hannover, lat: 52.3759, lng: 9.7320}
+      - {name: Nürnberg, lat: 49.4521, lng: 11.0767}
+      - {name: Rostock, lat: 54.0924, lng: 12.0991}
+
+  eurostat:
+    connector: eurostat
+    enabled: true
+    frequency: monthly
+    stale_after_days: 100
+    schedule: {kind: interval, every_min: 1440}
+    datasets:
+      # Germany's crude oil imports by partner country (thousand tonnes). Verify codes in the Eurostat data browser.
+      - {id: nrg_ti_oilm, params: {geo: DE, siec: O4100_TOT, unit: THS_T}, by: partner, name: "Germany crude oil imports from {partner}", unit: "thousand tonnes"}
+      # Harmonised consumer price indices, Germany, ECOICOP v2 (2025=100): transport fuels, heating oil, electricity, gas, energy, all items
+      # (prc_hicp_midx ended in 2025; checked live 2026-10-05)
+      - {id: prc_hicp_minr, params: {geo: DE, unit: I25, coicop18: [CP0722, CP0453, CP0451, CP0452, NRG, CP00]}, by: coicop18, name: "Germany consumer prices: {label}", unit: "index 2025=100"}
+    since: "2018-01"
 
   jodi:
     connector: jodi
@@ -189,6 +262,16 @@ anomaly_rules:
   fuel_lag_model: {window_weeks: 156, lags: 3, min_history: 60, min_abs_eur_per_litre: 0.03}
   thermal: {quantile: 0.95, min_baseline_days: 60, routine_share_threshold: 0.8}
   suppress_duplicates_days: 3
+
+# Assumptions for illustrative calculations (edit freely; every page/card states them)
+extras:
+  vat_rate_de: 0.19          # German standard VAT on fuel
+  tank_litres: 50
+  household_example:         # example 2025 monthly household spending in EUR, scaled by Eurostat price indices
+    CP0722: 160              # car fuel
+    CP0453: 60               # heating oil (households heating with oil)
+    CP0451: 110              # electricity
+    CP0452: 90               # gas
 
 # Default shipping baseline: a FIXED, user-editable pre-event window (never "the last 90 days").
 shipping_baseline:

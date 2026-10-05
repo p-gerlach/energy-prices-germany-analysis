@@ -139,7 +139,7 @@ class EIACollector(Collector):
 
 
 def _check_units(s: dict, units: set[str]):
-    expected = {"USD per barrel": {"$/BBL"}, "thousand barrels": {"MBBL"}, "thousand barrels per day": {"MBBL/D"},
+    expected = {"USD per barrel": {"$/BBL"}, "USD per gallon": {"$/GAL"}, "thousand barrels": {"MBBL"}, "thousand barrels per day": {"MBBL/D"},
                 "percent": {"%", "PERCENT"}}
     exp = expected.get(s["unit"])
     if exp and units and not units <= exp:
@@ -152,3 +152,7 @@ class EIASpotCollector(EIACollector):
 
 class EIAWeeklyCollector(EIACollector):
     key = "eia_weekly"
+
+
+class EIAProductsCollector(EIACollector):
+    key = "eia_products"

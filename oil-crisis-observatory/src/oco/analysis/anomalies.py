@@ -299,7 +299,8 @@ def run_anomalies(wh: Warehouse, as_of: datetime | None = None, last_n: int | No
             findings += evaluate_inventory(df, sid, unit, inv_cfg, z_thr, last_n or 8)
     sh_cfg = cfg.get("shipping", {})
     base = sources_config().get("shipping_baseline", {"start": "2025-01-01", "end": "2025-12-31"})
-    for (sid,) in con.execute("SELECT series_id FROM series WHERE source='IMF PortWatch' AND (series_id LIKE '%.n_tanker' OR series_id LIKE '%.n_total')").fetchall():
+    for (sid,) in con.execute("SELECT series_id FROM series WHERE source='IMF PortWatch' AND (series_id LIKE '%.n_tanker' OR series_id LIKE '%.n_total' "
+            "OR series_id LIKE 'portwatch.port.%')").fetchall():
         df = observations(con, sid, as_of=as_of)
         if not df.empty:
             findings += evaluate_shipping(df, sid, sh_cfg, base, last_n or 21)
