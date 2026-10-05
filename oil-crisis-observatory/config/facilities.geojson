@@ -1,0 +1,14 @@
+{
+  "type": "FeatureCollection",
+  "name": "oco_facilities",
+  "note": "Civilian facility list for refinery review. Coordinates are deliberately EMPTY: the brief forbids invented coordinates. For each site you want to monitor, add a boundary Polygon traced from a public source (e.g. OpenStreetMap landuse=industrial outline, company site map), list the links in source_links, and set verified: true. Satellite/thermal workflows skip unverified facilities and say so. routine_flare_points (optional) lists known flare stacks [[lon,lat],...] from public imagery so routine flaring is not mistaken for an incident.",
+  "features": [
+    {"type": "Feature", "properties": {"id": "ras_tanura", "name": "Ras Tanura refinery & terminal (Saudi Arabia)", "aliases": ["Ras Tanura", "Ras Tannura"], "country": "SA", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "abadan", "name": "Abadan refinery (Iran)", "aliases": ["Abadan"], "country": "IR", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "bandar_abbas_pgsc", "name": "Persian Gulf Star / Bandar Abbas refineries (Iran)", "aliases": ["Bandar Abbas", "Persian Gulf Star"], "country": "IR", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "ruwais", "name": "Ruwais refinery (UAE)", "aliases": ["Ruwais"], "country": "AE", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "pck_schwedt", "name": "PCK Raffinerie Schwedt (Germany)", "aliases": ["Schwedt", "PCK"], "country": "DE", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "miro_karlsruhe", "name": "MiRO Mineraloelraffinerie Oberrhein Karlsruhe (Germany)", "aliases": ["MiRO", "Karlsruhe refinery"], "country": "DE", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null},
+    {"type": "Feature", "properties": {"id": "leuna", "name": "TotalEnergies Raffinerie Mitteldeutschland Leuna (Germany)", "aliases": ["Leuna"], "country": "DE", "verified": false, "source_links": [], "routine_flare_points": []}, "geometry": null}
+  ]
+}

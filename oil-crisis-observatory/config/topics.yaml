@@ -1,0 +1,88 @@
+# Topic taxonomy used to link headlines <-> indicators. Matching is keyword/alias based and
+# transparent. A match means "relevant to compare", never "explains" or "caused".
+#
+# window_days: how far after a headline's publication we look for observations of each frequency;
+# before_days: how much prior context is shown.
+
+windows:
+  daily:   {before_days: 30, after_days: 10}
+  weekly:  {before_days: 90, after_days: 21}
+  monthly: {before_days: 400, after_days: 70}
+  event:   {before_days: 7, after_days: 7}
+
+direction_words:
+  up:   [surge, surges, soar, soars, jump, jumps, spike, spikes, rise, rises, rising, climb, climbs, record high, rally,
+         steigen, steigt, gestiegen, explodier, Rekordhoch, teurer, Anstieg, klettert, schießen]
+  down: [plunge, plunges, fall, falls, falling, drop, drops, slump, slumps, tumble, decline, cheaper,
+         sinken, sinkt, gesunken, fallen, fällt, billiger, Rückgang, Einbruch, bricht ein]
+  disruption: [disrupted, disruption, disrupts, slows, slowed, closed, closure, blockade, blocked, halt, halted, suspend, suspended, attack, attacked, seized,
+               gesperrt, Sperrung, Störung, gestört, Blockade, Angriff, gestoppt]
+
+topics:
+  hormuz_shipping:
+    label: "Strait of Hormuz shipping"
+    keywords: ["hormuz", "hormus", "strait of hormuz", "straße von hormus", "persian gulf tanker", "gulf of oman", "golf von oman", "tanker"]
+    geography: Middle East
+    series: [portwatch.hormuz.n_tanker, portwatch.hormuz.n_total, portwatch.hormuz.capacity_tanker, eia.brent_spot]
+    alternatives:
+      - "AIS coverage gaps or vessels switching off transponders change counted transits without changing real traffic"
+      - "Weekday and seasonal patterns in transit counts"
+      - "Vessels waiting at anchor raise occupancy without raising throughput"
+      - "Rerouting decisions by charterers/insurers rather than physical closure"
+  red_sea_shipping:
+    label: "Red Sea / Suez shipping"
+    keywords: ["red sea", "rotes meer", "suez", "bab el-mandeb", "houthi", "huthi", "cape of good hope", "kap der guten hoffnung"]
+    geography: Middle East / Africa
+    series: [portwatch.bab_el_mandeb.n_total, portwatch.suez.n_total, portwatch.cape_good_hope.n_total, portwatch.bab_el_mandeb.n_tanker]
+    alternatives:
+      - "Rerouting via the Cape raises Cape counts and lowers Suez counts without a change in total trade"
+      - "AIS coverage limitations"
+  crude_price:
+    label: "Crude oil prices"
+    keywords: ["oil price", "oil prices", "brent", "crude", "wti", "ölpreis", "rohöl", "opec", "barrel"]
+    geography: Global
+    series: [eia.brent_spot, eia.wti_spot, derived.brent_eur_per_barrel, ecb.usd_per_eur]
+    alternatives:
+      - "General risk sentiment and financial-market moves unrelated to physical supply"
+      - "US dollar movements (Brent in euros may move differently)"
+      - "OPEC+ production decisions"
+      - "Demand outlook revisions (China, global growth)"
+  german_fuel_prices:
+    label: "German / EU retail fuel prices"
+    keywords: ["diesel", "benzin", "super e10", "spritpreis", "spritpreise", "kraftstoff", "tankstelle", "petrol price", "fuel price", "heizöl", "heating oil", "gasoline", "petrol"]
+    geography: Germany / EU
+    series: [oil_bulletin.DE.diesel.with_tax, oil_bulletin.DE.diesel.without_tax, oil_bulletin.DE.euro95.with_tax, oil_bulletin.DE.euro95.without_tax, oil_bulletin.EU.diesel.with_tax, derived.brent_eur_per_litre]
+    alternatives:
+      - "Tax changes (energy tax, CO2 price, VAT) shift gross prices without a market change"
+      - "Exchange-rate moves change euro crude cost"
+      - "Refining margins for diesel/gasoline can move independently of crude"
+      - "Weekly bulletin prices are Monday snapshots and lag crude moves"
+  us_inventories:
+    label: "US oil inventories"
+    keywords: ["inventories", "stockpile", "crude stocks", "eia report", "lagerbestände", "strategic petroleum reserve", "spr", "distillate"]
+    geography: US
+    series: [eia.us_commercial_crude_stocks, eia.us_spr_stocks, eia.us_distillate_stocks, eia.us_gasoline_stocks, eia.us_refinery_utilisation]
+    alternatives:
+      - "Seasonal stock build/draw patterns"
+      - "Import/export timing shifts between weeks"
+      - "SPR releases are policy decisions, separate from commercial stocks"
+  refinery_disruption:
+    label: "Refinery disruption"
+    keywords: ["refinery", "raffinerie", "refining", "fire", "explosion", "drone", "outage", "brand", "explosion", "ras tanura", "abadan", "bandar abbas", "schwedt", "pck", "leuna", "miro"]
+    geography: facility-specific
+    series: [eia.us_refinery_utilisation, eia.us_distillate_stocks, oil_bulletin.DE.diesel.without_tax]
+    satellite: true
+    alternatives:
+      - "Routine gas flaring produces persistent heat detections"
+      - "Planned maintenance turnarounds"
+      - "Fires unrelated to attacks (industrial accidents)"
+      - "Clouds/smoke obscure optical imagery — absence of visible damage is not evidence of no damage"
+  jodi_supply:
+    label: "National oil production / trade (JODI)"
+    keywords: ["production", "förderung", "exports", "imports", "output", "saudi", "iraq", "iran", "uae", "kuwait"]
+    geography: Global
+    series: []
+    jodi: true
+    alternatives:
+      - "JODI country coverage changes month to month; balanced samples only"
+      - "Late or revised national submissions"

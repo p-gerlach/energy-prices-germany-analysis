@@ -1,0 +1,196 @@
+# Source configuration (WHAT to collect and WHEN to check). Access permissions live in
+# access_policy.yaml; a source here is useless unless its connector route is approved there.
+#
+# Polling intervals are proposed settings, NOT provider publication guarantees. More polling
+# does not create newer measurements. All times internal UTC; dashboard shows Europe/Berlin.
+
+budgets:
+  disk_gb: 20                    # total for data/ (raw + warehouse + satellite)
+  satellite_download_gb: 8       # rolling 30-day budget for raw Sentinel downloads
+  max_products_per_run: 2        # bounded satellite downloads per scheduler pass
+  raw_retention_days: 365        # raw files older than this MAY be pruned unless referenced by a saved card
+
+display_timezone: Europe/Berlin
+
+sources:
+
+  ecb_fx:
+    connector: ecb
+    enabled: true
+    frequency: daily
+    stale_after_days: 6
+    schedule: {kind: business_afternoon, tz: Europe/Berlin, window: ["15:00", "19:00"], every_min: 60, otherwise_every_min: 1440}
+    series:
+      - {id: ecb.usd_per_eur, key: D.USD.EUR.SP00.A, name: "USD per EUR (ECB reference rate)", unit: "USD per EUR"}
+    backfill_start: "2015-01-01"
+    revision_overlap_days: 30
+
+  eia_spot:
+    connector: eia
+    enabled: true
+    frequency: daily
+    stale_after_days: 7
+    schedule: {kind: us_business_hours, tz: America/New_York, window: ["08:00", "18:00"], every_min: 60, otherwise_every_min: 1440}
+    route: petroleum/pri/spt
+    eia_frequency: daily
+    series:
+      - {id: eia.brent_spot, facet: RBRTE, name: "Brent spot price FOB", unit: "USD per barrel", measure: price, geography: Europe (North Sea), product: crude_brent}
+      - {id: eia.wti_spot, facet: RWTC, name: "WTI Cushing spot price FOB", unit: "USD per barrel", measure: price, geography: US, product: crude_wti}
+    backfill_start: "2015-01-01"
+    revision_overlap_days: 21
+
+  eia_weekly:
+    connector: eia
+    enabled: true
+    frequency: weekly
+    stale_after_days: 12
+    # Weekly Petroleum Status Report: normally Wednesday 10:30 America/New_York; holiday weeks shift.
+    # API availability can lag the report by up to two hours.
+    schedule: {kind: eia_wpsr, tz: America/New_York, release_time: "10:30", rapid_every_min: 5, rapid_window_hours: 3, otherwise_every_min: 1440}
+    release_overrides: {}   # e.g. {"2026-11-25": "2026-11-25T12:00"} copied from the official schedule page
+    route: petroleum/sum/sndw
+    eia_frequency: weekly
+    series:
+      - {id: eia.us_commercial_crude_stocks, facet: WCESTUS1, name: "US commercial crude oil stocks (excl. SPR)", unit: "thousand barrels", measure: stock, geography: US, product: crude}
+      - {id: eia.us_spr_stocks, facet: WCSSTUS1, name: "US Strategic Petroleum Reserve stocks", unit: "thousand barrels", measure: stock, geography: US, product: crude_spr}
+      - {id: eia.us_distillate_stocks, facet: WDISTUS1, name: "US distillate fuel oil stocks", unit: "thousand barrels", measure: stock, geography: US, product: distillate}
+      - {id: eia.us_gasoline_stocks, facet: WGTSTUS1, name: "US total motor gasoline stocks", unit: "thousand barrels", measure: stock, geography: US, product: gasoline}
+      - {id: eia.us_refinery_utilisation, facet: WPULEUS3, name: "US refinery utilisation (percent of operable capacity)", unit: "percent", measure: rate, geography: US, product: refining}
+      - {id: eia.us_crude_production, facet: WCRFPUS2, name: "US field production of crude oil", unit: "thousand barrels per day", measure: flow, geography: US, product: crude}
+      - {id: eia.us_crude_imports, facet: WCRIMUS2, name: "US crude oil imports", unit: "thousand barrels per day", measure: flow, geography: US, product: crude}
+      - {id: eia.us_crude_exports, facet: WCREXUS2, name: "US crude oil exports", unit: "thousand barrels per day", measure: flow, geography: US, product: crude}
+      - {id: eia.us_product_supplied_total, facet: WRPUPUS2, name: "US product supplied, total petroleum (demand PROXY, not consumption)", unit: "thousand barrels per day", measure: flow, geography: US, product: all_products}
+    backfill_start: "2015-01-01"
+    revision_overlap_days: 56
+
+  oil_bulletin:
+    connector: oil_bulletin
+    enabled: true
+    frequency: weekly
+    stale_after_days: 14
+    # Published Thursdays (Europe/Brussels); prices are those in force on the Monday of that week.
+    schedule: {kind: weekday_window, tz: Europe/Brussels, weekdays: [3], window: ["08:00", "22:00"], every_min: 60, otherwise_every_min: 1440}
+    page: "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"
+    countries: [DE, FR, IT, NL, AT, PL, BE, ES, EU]
+    products: [euro95, diesel, heating_oil]
+    history_since: "2015-01-01"
+
+  portwatch:
+    connector: portwatch
+    enabled: true
+    frequency: daily
+    stale_after_days: 14            # PortWatch publishes with a provider lag of several days
+    schedule: {kind: interval, every_min: 60}
+    layer_url: "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0"
+    chokepoints:
+      - {slug: hormuz, names: ["Strait of Hormuz"]}
+      - {slug: suez, names: ["Suez Canal"]}
+      - {slug: bab_el_mandeb, names: ["Bab el-Mandeb Strait", "Bab el-Mandeb"]}
+      - {slug: cape_good_hope, names: ["Cape of Good Hope"]}
+    fields:
+      n_tanker: {name: "tanker transit calls", unit: "vessel transits per day (AIS transit calls, not barrels)"}
+      n_total: {name: "all vessel transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      n_cargo: {name: "cargo vessel transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      capacity_tanker: {name: "tanker deadweight capacity transiting", unit: "deadweight tonnes per day (capacity, NOT measured cargo)"}
+    backfill_start: "2019-01-01"
+    revision_overlap_days: 30
+    page_size: 1000
+
+  gdelt:
+    connector: gdelt
+    enabled: true
+    frequency: event
+    schedule: {kind: interval, every_min: 15}
+    min_seconds_between_requests: 6     # GDELT asks for at most one request every 5 seconds
+    max_records: 250
+    min_window_minutes: 30              # stop splitting windows below this; record possible truncation
+    lookback_hours: 24
+    queries:
+      - '("strait of hormuz" OR hormuz)'
+      - '("brent crude" OR "oil price" OR "oil prices") (iran OR hormuz OR opec OR tanker)'
+      - '(refinery (fire OR attack OR explosion OR outage OR drone))'
+      - '(diesel OR gasoline OR petrol) (germany OR europe) price'
+      - '(Hormus OR Ölpreis OR Dieselpreis OR Spritpreis OR Raffinerie) sourcelang:german'
+
+  rss:
+    connector: rss
+    enabled: true
+    frequency: event
+    schedule: {kind: interval, every_min: 15}
+    feeds:   # candidates; collector uses only feeds admitted by `oco news verify-feeds`
+      - {url: "https://www.tagesschau.de/wirtschaft/index~rss2.xml", publisher: tagesschau, language: de}
+      - {url: "https://feeds.bbci.co.uk/news/business/rss.xml", publisher: BBC News, language: en}
+      - {url: "https://rss.dw.com/rdf/rss-en-bus", publisher: Deutsche Welle, language: en}
+      - {url: "https://www.spiegel.de/wirtschaft/index.rss", publisher: DER SPIEGEL, language: de}
+      - {url: "https://www.aljazeera.com/xml/rss/all.xml", publisher: Al Jazeera, language: en}
+      - {url: "https://www.eia.gov/rss/todayinenergy.xml", publisher: EIA Today in Energy, language: en}
+    max_excerpt_chars: 300
+
+  jodi:
+    connector: jodi
+    enabled: true
+    frequency: monthly
+    stale_after_days: 100
+    schedule: {kind: release_dates, every_min: 60, otherwise_every_min: 1440}
+    release_dates: []      # copy from https://www.jodidata.org/oil/support/update-calendar.aspx (YYYY-MM-DD)
+    page: "https://www.jodidata.org/oil/database/data-downloads.aspx"
+    files: [primary]       # primary = crude/NGL/feedstocks; add 'secondary' for products (larger)
+    countries: [DE, FR, IT, NL, ES, PL, US, SA, IQ, AE, IR, KW, QA, OM, CN, IN, JP, KR, RU, NO, GB]
+    products: [CRUDEOIL]
+    flows: [INDPROD, TOTIMPSB, TOTEXPSB, CLOSTLV, REFINOBS]
+    units: [KBD, KBBL]
+    since: "2015-01"
+    max_zip_mb: 300
+
+  firms:
+    connector: firms
+    enabled: true
+    frequency: event
+    schedule: {kind: interval, every_min: 30}
+    products: [VIIRS_SNPP_NRT, VIIRS_NOAA20_NRT, VIIRS_NOAA21_NRT]
+    day_range: 2           # Area API accepts 1..5 days per request
+    facility_buffer_km: 5
+
+  cdse:
+    connector: cdse_catalogue
+    enabled: true
+    frequency: event
+    schedule: {kind: interval, every_min: 30}
+    lookback_days: 60
+    max_items_per_query: 100
+    collections:
+      sentinel1: {odata_collection: SENTINEL-1, product_type: GRD, product_type_contains: "GRD"}
+      sentinel2: {odata_collection: SENTINEL-2, product_type: S2MSI2A}
+    max_cloud_cover_s2: 60
+
+  sec_edgar:
+    connector: sec_edgar
+    enabled: false
+    frequency: daily
+    schedule: {kind: interval, every_min: 1440}
+    companies: []   # e.g. [{cik: "0000034088", name: "Exxon Mobil"}]
+
+  comext:
+    connector: comext
+    enabled: false
+    frequency: monthly
+    schedule: {kind: interval, every_min: 1440}
+    dataset: DS-045409
+    queries: []     # e.g. ["M.DE.IR.2709.1.VALUE_IN_EUROS"] — verify dimension order on the Comext data browser first
+
+# Default anomaly screening rules (tunable SCREENING thresholds, not calibrated probabilities).
+anomaly_rules:
+  robust_z_threshold: 3.5
+  price_daily:   {window: 250, min_history: 60, min_abs_pct: 4.0}
+  price_weekly:  {window: 156, min_history: 52, min_abs_pct: 3.0}
+  inventory_weekly: {years: 5, week_halfwidth: 1, min_history: 8, min_abs_change: {"thousand barrels": 4000, percent: 2.0, "thousand barrels per day": 400}}
+  shipping: {min_days_in_7d: 6, low_quantile: 0.05, high_quantile: 0.95, min_abs_change: 5, persistence_days: 2}
+  fuel_lag_model: {window_weeks: 156, lags: 3, min_history: 60, min_abs_eur_per_litre: 0.03}
+  thermal: {quantile: 0.95, min_baseline_days: 60, routine_share_threshold: 0.8}
+  suppress_duplicates_days: 3
+
+# Default shipping baseline: a FIXED, user-editable pre-event window (never "the last 90 days").
+shipping_baseline:
+  start: "2025-01-01"
+  end: "2025-12-31"
+  label: "calendar 2025 (edit to a period you consider pre-event)"
