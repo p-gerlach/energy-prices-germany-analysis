@@ -154,6 +154,29 @@ def lonlat_grid(to_ll, rows, cols, step: int = 10):
     return lon, lat
 
 
+MASK_STEP = 10
+
+
+def coarse_masks(to_ll, rows, cols, aoi_poly, land_poly, step: int = MASK_STEP):
+    import shapely
+
+    rr, cc = rows[::step], cols[::step]
+    C, R = np.meshgrid(cc, rr)
+    ll = to_ll(np.column_stack([C.ravel(), R.ravel()])).reshape(R.shape + (2,))
+    lon, lat = ll[..., 0], ll[..., 1]
+    ok = ~np.isnan(lon)
+    in_aoi_c = np.zeros(lon.shape, bool)
+    in_aoi_c[ok] = shapely.contains_xy(aoi_poly, lon[ok], lat[ok])
+    land_c = np.zeros(lon.shape, bool)
+    if land_poly is not None:
+        sel = ok & in_aoi_c  # only test points inside the AOI
+        land_c[sel] = shapely.contains_xy(land_poly, lon[sel], lat[sel])
+
+    def expand(m):
+        return np.repeat(np.repeat(m, step, axis=0), step, axis=1)[: rows.size, : cols.size]
+    return expand(in_aoi_c), expand(land_c)
+
+
 def cfar(x: np.ndarray, water: np.ndarray, p: CFARParams) -> np.ndarray:
     """Constant-false-alarm-rate detector on linear sigma0, water pixels only, with a guard window.
 
@@ -165,27 +188,33 @@ def cfar(x: np.ndarray, water: np.ndarray, p: CFARParams) -> np.ndarray:
     from scipy.ndimage import uniform_filter
     from scipy.stats import gamma
 
-    xv = np.where(water, np.nan_to_num(x), 0.0).astype("float64")
-    wv = water.astype("float64")
+    xv = np.where(water, np.nan_to_num(x), 0.0).astype("float32")
+    wv = water.astype("float32")
     B, G = p.background, p.guard
 
     def box_sum(a, size):
-        return uniform_filter(a, size=size, mode="constant") * size * size
+        return uniform_filter(a, size=size, mode="constant") * float(size * size)
     s1 = box_sum(xv, B) - box_sum(xv, G)
-    s2 = box_sum(xv ** 2, B) - box_sum(xv ** 2, G)
     n = box_sum(wv, B) - box_sum(wv, G)
+    s2 = box_sum(xv * xv, B) - box_sum(xv * xv, G)
     with np.errstate(invalid="ignore", divide="ignore"):
         mean = s1 / n
-        var = np.maximum(s2 / n - mean ** 2, 1e-30)
-        enl = np.clip(mean ** 2 / var, 1.0, 50.0)
-        contrast_db = 10 * np.log10(np.where(mean > 0, xv / mean, np.nan))
-    # threshold factor depends only on ENL: tabulate on a 0.05 grid instead of per-pixel quantile calls
-    grid = np.round(np.nan_to_num(enl, nan=1.0) / 0.05) * 0.05
-    uniq = np.unique(grid)
-    table = {u: gamma.isf(p.pfa, a=u) / u for u in uniq}
-    factor = np.vectorize(table.get, otypes=[float])(grid)
+        del s1
+        var = np.maximum(s2 / n - mean * mean, 1e-30)
+        del s2
+        enl = np.clip(mean * mean / var, 1.0, 50.0)
+        del var
+    # threshold factor depends only on ENL: table on a 0.05 grid, looked up by integer index (no per-pixel Python)
+    steps = np.arange(20, 1001)  # ENL 1.00 .. 50.00 in 0.05 steps
+    table = (gamma.isf(p.pfa, a=steps * 0.05) / (steps * 0.05)).astype("float32")
+    idx = np.clip(np.rint(np.nan_to_num(enl, nan=1.0) / 0.05).astype(np.int32), 20, 1000) - 20
+    del enl
+    factor = table[idx]
+    del idx
+    with np.errstate(invalid="ignore", divide="ignore"):
+        contrast_ok = xv >= mean * np.float32(10 ** (p.min_contrast_db / 10))
     enough = n >= 0.5 * (B * B - G * G)
-    return water & enough & (xv > factor * mean) & (contrast_db >= p.min_contrast_db)
+    return water & enough & (xv > factor * mean) & contrast_ok & (mean > 0)
 
 
 def detect(grd_zip: Path, aoi: dict, land_geom, fixed_points: list[tuple[float, float]] = (), params: CFARParams | None = None,
@@ -198,20 +227,18 @@ def detect(grd_zip: Path, aoi: dict, land_geom, fixed_points: list[tuple[float, 
     p = params or CFARParams()
     grd = open_grd(grd_zip, pol)
     w = calibrated_window(grd, aoi["geometry"])
-    lon, lat = lonlat_grid(w["to_ll"], w["rows"], w["cols"])
-    aoi_poly = shapely.geometry.shape(aoi["geometry"])
-    in_aoi = shapely.contains_xy(aoi_poly, lon, lat)
-    if land_geom is not None:
-        land_buf = land_geom.buffer(p.land_buffer_km / 111.0)
-        land = shapely.contains_xy(land_buf, lon, lat)
-    else:
-        land = np.zeros_like(in_aoi)
+    # Masks are evaluated on a coarse tie grid (every MASK_STEP pixels, ~100 m) and expanded by nearest neighbour:
+    # exact point-in-polygon tests for ~1e8 pixels against detailed coastlines take far too long, and the
+    # coastal buffer (default 1 km) is much larger than the mask granularity.
+    in_aoi, land = coarse_masks(w["to_ll"], w["rows"], w["cols"], shapely.geometry.shape(aoi["geometry"]),
+                                land_geom.buffer(p.land_buffer_km / 111.0) if land_geom is not None else None)
     water_aoi = in_aoi & ~land
     valid = water_aoi & ~np.isnan(w["sigma0"])
     valid_fraction = float(valid.sum() / max(water_aoi.sum(), 1))
     det = cfar(w["sigma0"], valid, p)
     lab, n = label(det)
-    sig_db = 10 * np.log10(np.maximum(np.nan_to_num(w["sigma0"]), 1e-10))
+    sig_db = 10 * np.log10(np.maximum(np.nan_to_num(w["sigma0"]), 1e-10)).astype("float32")
+    background_db = float(np.nanmedian(sig_db[valid][::50])) if valid.any() else None  # once, subsampled
     cands = []
     for i, sl in enumerate(find_objects(lab), start=1):
         if sl is None:
@@ -233,7 +260,7 @@ def detect(grd_zip: Path, aoi: dict, land_geom, fixed_points: list[tuple[float, 
             status = "masked:fixed_structure"
         peak = float(np.nanmax(sig_db[sl][m]))
         cands.append({"lon": float(ll[0]), "lat": float(ll[1]), "area_px": area, "peak_db": peak,
-                      "contrast_db": float(peak - np.nanmedian(sig_db[valid])) if valid.any() else None,
+                      "contrast_db": float(peak - background_db) if background_db is not None else None,
                       "quality": q, "review_status": status})
     # dedupe (overlapping components / split targets)
     kept = []

@@ -23,11 +23,13 @@ def keyword_hits(text: str, keywords: list[str]) -> list[str]:
     hits = []
     for k in keywords:
         k2 = k.lower()
-        # word-boundary match for short tokens, substring for multiword/compound German words
+        # short tokens: whole word. Longer ones: must START a word (so German compounds such as
+        # "Dieselpreise" match "diesel"), but never match inside a word ("rebrand" must not match "brand").
         if len(k2) <= 4:
-            if re.search(rf"(?<![\wäöüß]){re.escape(k2)}(?![\wäöüß])", t):
-                hits.append(k)
-        elif k2 in t:
+            pat = rf"(?<![\wäöüß]){re.escape(k2)}(?![\wäöüß])"
+        else:
+            pat = rf"(?<![\wäöüß]){re.escape(k2)}"
+        if re.search(pat, t):
             hits.append(k)
     return hits
 
@@ -37,11 +39,14 @@ def match_topics(text: str) -> dict[str, list[str]]:
     out = {}
     for key, t in topics.items():
         kws = list(t["keywords"])
+        required = list(t.get("require_any", []))
         if key == "refinery_disruption":
-            for f in geo.facilities():
-                kws += f["properties"].get("aliases", [])
+            aliases = [a for f in geo.facilities() for a in f["properties"].get("aliases", [])]
+            kws += aliases
+            required += aliases
         hits = keyword_hits(text, kws)
-        if hits:
+        # generic event words ("fire", "Brand", "exports") only count when a topic anchor word is also present
+        if hits and (not required or keyword_hits(text, required)):
             out[key] = hits
     return out
 

@@ -114,6 +114,8 @@ def doctor(ctx: Context, live: bool = False, only: list[str] | None = None) -> d
         d["details"].append(p)
         if p["ok"] and p["kind"] in ("anonymous_read", "credential_read", "authenticated_download"):
             d[p["kind"]] = p["checked_at"]
+        elif p["ok"] and p["kind"] == "credential_check":
+            d["credential_read"] = p["checked_at"]  # login accepted; downloads only count once a product arrives
         if p["kind"] == "unconfigured":
             d["unconfigured"] = p["checked_at"]
         elif not p["ok"]:

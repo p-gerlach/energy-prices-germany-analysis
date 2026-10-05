@@ -37,7 +37,9 @@ def load_land_geoms(zip_path: Path, bbox: tuple[float, float, float, float] | No
     geoms = _read_shp_from_zip(zip_path)
     if bbox:
         b = box(*bbox)
-        geoms = [g for g in geoms if g.intersects(b)]
+        # clip continent-sized polygons to the study box: keeps point-in-polygon tests fast
+        geoms = [g.intersection(b) for g in geoms if g.intersects(b)]
+        geoms = [g for g in geoms if not g.is_empty]
     return shapely.union_all(geoms) if geoms else None
 
 

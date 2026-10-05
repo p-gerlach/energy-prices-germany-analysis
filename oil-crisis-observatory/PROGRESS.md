@@ -46,13 +46,29 @@
 - Bugs found by tests and fixed: invalid tz `Europe/Frankfurt`; RSS duplicate erased excerpt; CFAR k-sigma false alarms
   (replaced by gamma-PFA CFAR); card version churn from volatile fields; mixed-claim headlines.
 
+## Live verification (2026-10-05, after the user allow-listed the data domains)
+- doctor --live: ECB, Oil Bulletin, PortWatch, RSS (tagesschau, BBC), Copernicus catalogue, Natural Earth = anonymous_read_tested;
+  EIA, FIRMS = credential_read_tested; CDSE login accepted (username must be the registration e-mail, not the account UUID);
+  CDSE authenticated download TESTED (S1C GRDH COG 2026-09-25, 809,400,792 bytes = catalogue size).
+- Backfill/refresh stored real data: ECB 3,010 obs (to 2026-10-05); EIA spot 5,930 (to 2026-09-29); EIA weekly 5,517 (week to 2026-09-25);
+  PortWatch 45,232 (to 2026-09-27); Oil Bulletin 32,076 (to 2026-09-28); JODI 3,800 (to 2026-07); RSS 70 headlines; CDSE 354 scenes.
+- Real finding surfaced by the rules: Hormuz tanker transit calls fell from ~45-65/day to 0-5/day on 2026-03-01 and stayed near zero
+  (7-day mean 1.3/day vs 2025 median 49.4); Brent monthly mean 70.9 (Feb) -> 117.3 USD (Apr) -> 114.1 (Sep); DE diesel 2.437 EUR/L (2026-09-28).
+- Live fixes: JODI page now lists yearly CSVs (parser + policy route updated after review); CDSE firewall 403 ("rejected due to a
+  violation") after a burst => now a 30-min pause + 3 s spacing, not a stop; GDELT returned 429 from the shared cloud IP (paused, retry later);
+  topic matching false positives ("branded"/"rebrand" -> refinery, "Förderung" -> JODI) fixed with word-start matching + anchor words;
+  anomaly cards now one per alert episode showing the latest reading; stale cards withdrawn (history kept); provider OAuth error text surfaced;
+  CFAR threshold lookup vectorised (100M-pixel AOI).
+- S1 detection ran on the real 2026-09-25 scene (2 min after fixing three performance hotspots): 189 unreviewed candidates in the
+  hormuz_strait polygon, mostly along coasts/islets not resolved by Natural Earth -> NOT usable as vessel counts until a finer
+  coastline and a reviewed sample exist. GDELT: still HTTP 429 from the cloud IP after the pause (paused again, no retry storm).
+- Not reachable from the cloud session: rss.dw.com, spiegel.de, aljazeera.com, www.eia.gov (not allow-listed), data.sec.gov (optional).
+
 ## Outstanding / next
-- Live smoke tests: BLOCKED in build session (egress 403). Run `oco doctor --live` and `oco refresh` locally.
 - If live Oil Bulletin / JODI layouts differ from the documented ones, collectors report `schema_changed`/`denied` —
   adjust parser or policy route after inspecting the real file (explicit review).
 - Real Sentinel-1/-2 products never processed (no credential/network); S1 detection remains experimental.
 
 ## Blockers
-- Network egress from build session (see above).
-- Free credentials not supplied: EIA_API_KEY, FIRMS_MAP_KEY, CDSE_USERNAME/PASSWORD (user must obtain; never auto-registered).
+- GDELT throttles the shared cloud IP; expected to work from a home connection.
 - Facilities have no verified boundaries (deliberately empty — must be traced by the user from public sources).

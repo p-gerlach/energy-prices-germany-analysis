@@ -244,12 +244,15 @@ def test_jodi_balanced_sample():
 
 def test_jodi_collector_end_to_end(ctx_factory):
     z = make_jodi_zip()
-    page = '<a href="/_resources/files/downloads/oil-data/world_primary_csv.zip">Primary CSV</a>'
+    csv_bytes = zipfile.ZipFile(io.BytesIO(z)).read("world_primary.csv")
+    # live layout seen 2026-10-05: one CSV per year
+    page = ('<a href="/_resources/files/downloads/oil-data/annual-csv/primary/2025.csv">2025</a>'
+            '<a href="/_resources/files/downloads/oil-data/annual-csv/primary/primaryyear2026.csv">2026</a>')
 
     def h(req):
         if req.url.path.endswith(".aspx"):
             return httpx.Response(200, text=page, headers={"content-type": "text/html"})
-        return httpx.Response(200, content=z, headers={"content-type": "application/zip"})
+        return httpx.Response(200, content=csv_bytes, headers={"content-type": "application/octet-stream"})
     ctx = ctx_factory(h)
     res, n = run(ctx, JODICollector)
     assert res.status == "ok", res.message and n > 0

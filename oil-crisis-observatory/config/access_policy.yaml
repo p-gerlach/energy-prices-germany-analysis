@@ -39,6 +39,11 @@ global:
     - "add a payment method"
     - "billing account"
     - "enter your credit card"
+  # 403 bodies that are a provider FIREWALL rate/abuse block (seen live from CDSE on 2026-10-05 after a burst of
+  # catalogue searches). These PAUSE the connector for 30 min; they never trigger retries in a loop or an upgrade.
+  # A 403 without one of these exact phrases on an anonymous route still STOPS the connector (fail closed).
+  throttle_markers:
+    - "this request was rejected due to a violation"
   # Status codes that permanently stop a connector until a human reviews it.
   stop_statuses: [402]
   # Environment variables that must never be read by the application (cloud/paid accounts).
@@ -218,8 +223,9 @@ connectors:
         content_types: [text/html]
       - host: www.jodidata.org
         methods: [GET]
-        path_regex: '^/_resources/files/downloads/oil-data/[A-Za-z0-9_\-]+\.zip$'
-        content_types: [application/zip, application/x-zip-compressed, application/octet-stream]
+        # reviewed 2026-10-05 against the live page: yearly CSVs under annual-csv/(primary|secondary)/ plus ZIP archives
+        path_regex: '^/_resources/files/downloads/oil-data/((annual-csv/(primary|secondary)/[A-Za-z0-9_]+\.csv)|([A-Za-z0-9_\-]+\.zip))$'
+        content_types: [application/zip, application/x-zip-compressed, application/octet-stream, text/csv, text/plain]
         max_response_bytes: 314572800
 
   firms:

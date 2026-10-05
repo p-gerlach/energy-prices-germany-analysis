@@ -68,7 +68,8 @@ topics:
       - "SPR releases are policy decisions, separate from commercial stocks"
   refinery_disruption:
     label: "Refinery disruption"
-    keywords: ["refinery", "raffinerie", "refining", "fire", "explosion", "drone", "outage", "brand", "explosion", "ras tanura", "abadan", "bandar abbas", "schwedt", "pck", "leuna", "miro"]
+    keywords: ["refinery", "raffinerie", "refining", "fire", "explosion", "drone", "outage", "brand", "ras tanura", "abadan", "bandar abbas", "schwedt", "pck", "leuna", "miro"]
+    require_any: ["refinery", "refineries", "raffinerie", "refining", "ras tanura", "abadan", "bandar abbas", "schwedt", "pck", "leuna", "miro", "oil terminal", "ölterminal"]
     geography: facility-specific
     series: [eia.us_refinery_utilisation, eia.us_distillate_stocks, oil_bulletin.DE.diesel.without_tax]
     satellite: true
@@ -80,6 +81,7 @@ topics:
   jodi_supply:
     label: "National oil production / trade (JODI)"
     keywords: ["production", "förderung", "exports", "imports", "output", "saudi", "iraq", "iran", "uae", "kuwait"]
+    require_any: ["oil", "öl", "ölförder", "erdöl", "rohöl", "crude", "opec", "barrel", "petroleum"]
     geography: Global
     series: []
     jodi: true

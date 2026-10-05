@@ -176,6 +176,13 @@ class GuardedClient:
                 return m
         return None
 
+    def _scan_throttle(self, body: bytes) -> str | None:
+        text = body[:50_000].decode("utf-8", errors="ignore").lower()
+        for m in self.policy.raw["global"].get("throttle_markers", []):
+            if m.lower() in text:
+                return m
+        return None
+
     def _retry_after(self, resp: httpx.Response, attempt: int) -> float:
         ra = resp.headers.get("retry-after")
         if ra:
@@ -187,7 +194,8 @@ class GuardedClient:
                     return max(0.0, min((dt - datetime.now(timezone.utc)).total_seconds(), self.max_backoff))
                 except (TypeError, ValueError):
                     pass
-        return self._backoff(attempt)
+        # no Retry-After: wait at least 10 s so a strict provider (e.g. GDELT: 1 request / 5 s) can recover
+        return max(10.0, self._backoff(attempt))
 
     def _backoff(self, attempt: int) -> float:
         return min(self.max_backoff, (2 ** attempt) * 2.0) * (0.5 + random.random() / 2)
@@ -340,6 +348,12 @@ class GuardedClient:
             marker = self._scan_markers(body)
             if marker:
                 self._stop(f"HTTP {status} with billing/entitlement wording ({marker!r})")
+            throttle = self._scan_throttle(body) if status == 403 else None
+            if throttle:
+                # provider firewall rate/abuse block (not a login or payment demand): pause, never hammer, never upgrade
+                until = utcnow() + timedelta(minutes=30)
+                self.state.pause_connector(self.connector, until, f"HTTP 403 firewall throttle ({throttle!r}); waiting")
+                raise RateLimited(f"{self.connector}: provider firewall throttled requests; paused until {until.isoformat()}")
             if self.conn_policy.credential == "none":
                 self._stop(f"unexpected authentication requirement (HTTP {status}) on an anonymous route")
             if status == 401:
@@ -355,7 +369,14 @@ class GuardedClient:
             marker = self._scan_markers(body)
             if marker:
                 self._stop(f"HTTP {status} with billing/entitlement wording ({marker!r})")
-            raise ContentValidationError(f"HTTP {status} from {route.host}")
+            detail = ""
+            try:  # surface a provider's short JSON error text (e.g. OAuth "Invalid user credentials"); never echo secrets
+                import json as _json
+                j = _json.loads(body[:20_000])
+                detail = str(j.get("error_description") or j.get("error") or "")[:160] if isinstance(j, dict) else ""
+            except ValueError:
+                pass
+            raise ContentValidationError(f"HTTP {status} from {route.host}" + (f": {self._r(detail)}" if detail else ""))
         # ---- 2xx -----------------------------------------------------------------------
         allowed = expect_content or route.content_types
         if allowed and ctype not in allowed:

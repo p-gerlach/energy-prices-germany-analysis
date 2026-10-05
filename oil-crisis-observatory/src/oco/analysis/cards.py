@@ -367,6 +367,10 @@ def _follow_up(rel: str, topics: dict, ms: list[dict]) -> str:
     return "Is the move persistent over the next releases, and does it appear in independent series?"
 
 
+def _d(v) -> str:
+    return str(pd.Timestamp(v).date())
+
+
 def anomaly_card(con, a: dict) -> dict:
     info = series_info(con, a["series_id"])
     obs_end = pd.Timestamp(a["obs_end"])
@@ -393,7 +397,7 @@ def anomaly_card(con, a: dict) -> dict:
         alts += [x for x in tcfg[t].get("alternatives", []) if x not in alts]
     meas = {"series_id": a["series_id"], "name": info.get("name"), "unit": info.get("unit"), "frequency": info.get("frequency"),
             "digits": _digits(info.get("unit", "")), "latest_value": a["value"], "latest_date": str(obs_end.date()),
-            "latest_period": f"{a['obs_start']}..{a['obs_end']}",
+            "latest_period": f"{_d(a['obs_start'])}..{_d(a['obs_end'])}",
             "previous_value": stats.get("previous_value"), "previous_date": stats.get("previous_date"),
             "abs_change": stats.get("change", (a["value"] - stats["previous_value"]) if stats.get("previous_value") is not None and a["value"] is not None else None),
             "pct_change": stats.get("pct_change"),
@@ -405,8 +409,9 @@ def anomaly_card(con, a: dict) -> dict:
              "formula": a["formula_version"]}
     inputs = sorted(set(json.loads(a["input_version_ids"]) + [a["anomaly_id"]]))
     card = {
-        "card_id": "a-" + sha1(a["rule_id"], a["series_id"], a["obs_start"]), "kind": "anomaly", "subject_id": a["anomaly_id"],
-        "created_at": str(now_utc()), "question": f"What explains the unusual reading in {info.get('name')} for {a['obs_start']}..{a['obs_end']}?",
+        "card_id": "a-" + sha1(a["rule_id"], a["series_id"], a.get("_episode_root") or a["obs_start"]), "kind": "anomaly",
+        "subject_id": a["anomaly_id"], "created_at": str(now_utc()),
+        "question": f"What explains the unusual reading in {info.get('name')} for {_d(a['obs_start'])}..{_d(a['obs_end'])}?",
         "topics": topics, "geography": info.get("geography", ""), "relationship": "context_only",
         "calculations": calcs, "related_reporting": related,
         "contrary_observations": normal or ["No related series evaluated in the same period."],
@@ -415,8 +420,10 @@ def anomaly_card(con, a: dict) -> dict:
                         "Contemporaneous headlines are not evidence of cause."] + list(m.get("limitations", [])),
         "charts": [{"series_id": a["series_id"], "event_date": str(obs_end.date())}],
         "input_version_ids": inputs, "signal_strength": "strong",
-        "quality": {"evidence_quality": "high" if stats.get("method") == "MAD" else "medium",
-                    "evidence_quality_reason": f"baseline method {stats.get('method')}, n={stats.get('n_baseline')}",
+        "quality": {"evidence_quality": "high" if (stats.get("method") == "MAD" or (stats.get("n_baseline_windows") or 0) >= 60) else "medium",
+                    "evidence_quality_reason": (f"baseline method {stats['method']}, n={stats.get('n_baseline')}" if stats.get("method")
+                                                else f"fixed-window quantile baseline, {stats.get('n_baseline_windows')} baseline 7-day windows, "
+                                                     f"{stats.get('n_days_present')}/7 days observed"),
                     "freshness": m.get("freshness", "unknown"), "editorial_relevance": "high" if related else "medium",
                     "editorial_relevance_reason": f"{len(related)} related headline cluster(s) in window"},
         "follow_up": "Does the reading persist in the next release, and is it visible in independent series?",
@@ -454,19 +461,50 @@ def build_cards(wh: Warehouse, headline_days: int = 14, ctx_client=None) -> dict
     counts = {"headline": 0, "anomaly": 0, "context": 0, "new_versions": 0}
     since = now_utc() - timedelta(days=headline_days)
     heads = con.execute("SELECT * FROM headlines WHERE discovered_at >= ? OR origin='manual'", [since]).df()
+    counts["withdrawn"] = 0
     for h in heads.to_dict("records"):
         card = headline_card(con, h)
         if card:
             _, new = save_card(wh, _finish(card, ctx_client))
             counts["headline"] += 1
             counts["new_versions"] += int(new)
-    an = con.execute("SELECT * FROM anomalies WHERE fired AND status='active' AND as_of IS NULL").df()
-    for a in an.to_dict("records"):
-        if json.loads(a["stats"]).get("continuation_of"):
-            continue
-        _, new = save_card(wh, _finish(anomaly_card(con, a), ctx_client))
+        else:
+            # matching rules changed and the headline no longer matches: withdraw (history kept, nothing deleted)
+            n = con.execute("SELECT COUNT(*) FROM evidence_cards WHERE card_id=? AND status='current'",
+                            ["h-" + h["headline_id"]]).fetchone()[0]
+            if n:
+                con.execute("UPDATE evidence_cards SET status='withdrawn' WHERE card_id=? AND status='current'", ["h-" + h["headline_id"]])
+                counts["withdrawn"] += n
+    an = con.execute("SELECT * FROM anomalies WHERE fired AND status='active' AND as_of IS NULL ORDER BY obs_end").df()
+    # One card per alert EPISODE: follow continuation links back to the episode's first alert (stable card id),
+    # and show the episode's LATEST reading, so an ongoing alert updates its card instead of going stale.
+    recs = {r["anomaly_id"]: r for r in an.to_dict("records")}
+    all_links = dict(con.execute("SELECT anomaly_id, json_extract_string(stats, '$.continuation_of') FROM anomalies").fetchall())
+
+    def root(aid):
+        seen = set()
+        while all_links.get(aid) and aid not in seen:
+            seen.add(aid)
+            aid = all_links[aid]
+        return aid
+    episodes: dict[str, dict] = {}
+    for a in recs.values():
+        r = root(a["anomaly_id"])
+        if r not in episodes or a["obs_end"] > episodes[r]["obs_end"]:
+            episodes[r] = {**a, "_episode_root": r}
+    produced = set()
+    for a in episodes.values():
+        card = anomaly_card(con, a)
+        produced.add(card["card_id"])
+        _, new = save_card(wh, _finish(card, ctx_client))
         counts["anomaly"] += 1
         counts["new_versions"] += int(new)
+    # alert episodes no longer active (superseded by revisions) or ids from an older card scheme: withdraw, keep history
+    stale = [r[0] for r in con.execute("SELECT card_id FROM evidence_cards WHERE kind='anomaly' AND status='current'").fetchall()
+             if r[0] not in produced]
+    for cid in stale:
+        con.execute("UPDATE evidence_cards SET status='withdrawn' WHERE card_id=? AND status='current'", [cid])
+    counts["withdrawn"] += len(stale)
     for sid in KEY_CONTEXT_SERIES:
         c = context_card(con, sid)
         if c:

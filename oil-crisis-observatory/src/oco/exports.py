@@ -228,7 +228,7 @@ def render_card_markdown(card: dict, version: int, demo: bool = False) -> str:
     if card["calculations"].get("temporal_note"):
         L.append(f"\n> {card['calculations']['temporal_note']}")
     L.append("\n## Measurements\n")
-    L.append("| Series | Latest (period) | Previous | Change | % | Context window | Screening |")
+    L.append("| Series | Latest (period) | Previous (date) | Change | % | Context window | Screening |")
     L.append("|---|---|---|---|---|---|---|")
     for m in card["calculations"].get("measurements", []):
         d = m.get("digits", 2)
@@ -236,7 +236,7 @@ def render_card_markdown(card: dict, version: int, demo: bool = False) -> str:
         an = m.get("anomaly") or {}
         L.append("| {n} [{u}] | {v} ({p}) | {pv} ({pd}) | {c} | {pc} | {cw} | {a} |".format(
             n=m["name"], u=m["unit"], v=_f(m.get("latest_value"), d), p=m.get("latest_period", ""),
-            pv=_f(m.get("previous_value"), d), pd=m.get("previous_date", ""), c=_f(m.get("abs_change"), d, True),
+            pv=_f(m.get("previous_value"), d), pd=m.get("previous_date") or "–", c=_f(m.get("abs_change"), d, True),
             pc=_f(m.get("pct_change"), 1, True), cw=(f"n={cw.get('n')}, median {_f(cw.get('median'), d)} ({cw.get('from')}..{cw.get('to')})" if cw else ""),
             a=(f"{an.get('rule_id')}: {'FIRED' if an.get('fired') else 'not fired'}" if an else "n/a")))
     for m in card["calculations"].get("measurements", []):

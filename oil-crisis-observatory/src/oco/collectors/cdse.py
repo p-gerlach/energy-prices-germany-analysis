@@ -114,6 +114,7 @@ class CDSECatalogueCollector(Collector):
         items: list[dict] = []
         pages = 0
         while url and pages < 10:
+            self.ctx.sleep(float(self.cfg.get("min_seconds_between_requests", 3)))  # avoid firewall bursts
             r = client.get(url, params=params if pages == 0 else None)
             result.n_requests += 1
             payload = r.json()

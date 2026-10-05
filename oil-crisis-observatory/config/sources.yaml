@@ -157,6 +157,7 @@ sources:
     frequency: event
     schedule: {kind: interval, every_min: 30}
     lookback_days: 60
+    min_seconds_between_requests: 3   # CDSE firewall rejected a burst of ~16 searches on 2026-10-05
     max_items_per_query: 100
     collections:
       sentinel1: {odata_collection: SENTINEL-1, product_type: GRD, product_type_contains: "GRD"}

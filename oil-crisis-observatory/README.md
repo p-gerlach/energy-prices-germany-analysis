@@ -8,10 +8,9 @@ reproducible 16:9 charts, CSVs and evidence cards.
 It is designed to **cost nothing**. It never creates accounts, never touches payment, trials or processing
 credits, and runs entirely on your computer (see [Zero-charge safeguards](#zero-charge-safeguards)).
 
-> **Status (5 Oct 2026):** built and tested offline (94 automated tests passing). **No connector has yet fetched live
-> data**, because the cloud machine it was built on blocks outbound access to every data provider. Your first
-> run of `oco doctor --live` on your own computer is the real connector test.
-> See [What is verified](#what-is-verified-and-what-is-not).
+> **Status (5 Oct 2026):** live-tested. ECB, EIA, the EU Oil Bulletin, PortWatch, JODI, RSS, NASA FIRMS (key check),
+> the Copernicus catalogue and an authenticated Sentinel-1 download all worked with real data. GDELT was rate-limited
+> from the cloud test machine. Sentinel-1 vessel counts remain experimental. Details: `PROGRESS.md`.
 
 ---
 
@@ -44,7 +43,7 @@ Open `.env` and fill in what you have. Everything is optional: connectors withou
 | `OCO_CONTACT_EMAIL` | polite User-Agent (needed for SEC EDGAR) | your email |
 | `EIA_API_KEY` | Brent/WTI, US stocks, refinery utilisation | https://www.eia.gov/opendata/register.php: enter your email; the key arrives by email |
 | `FIRMS_MAP_KEY` | NASA thermal detections near refineries | https://firms.modaps.eosdis.nasa.gov/api/map_key/: enter your email; the MAP_KEY arrives by email |
-| `CDSE_USERNAME` / `CDSE_PASSWORD` | raw Sentinel-1/-2 downloads | https://dataspace.copernicus.eu/: "Register" creates a free **General User** account. Do **not** buy or activate processing units, Sentinel Hub plans or paid extensions; the app only uses raw downloads |
+| `CDSE_USERNAME` / `CDSE_PASSWORD` | raw Sentinel-1/-2 downloads (username = the **e-mail address** you registered with) | https://dataspace.copernicus.eu/: "Register" creates a free **General User** account. Do **not** buy or activate processing units, Sentinel Hub plans or paid extensions; the app only uses raw downloads |
 
 The app will **never** register for you, read cloud or billing credentials (AWS, Google, ArcGIS…), or ask for
 payment details.

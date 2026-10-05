@@ -238,3 +238,14 @@ def test_app_never_reads_cloud_credentials(monkeypatch):
         settings.env("AWS_SECRET_ACCESS_KEY")
     with pytest.raises(KeyError):
         settings.env("ARCGIS_API_KEY")
+
+
+def test_firewall_throttle_pauses_but_login_demand_still_stops(state):
+    body = '{"status":"error","data":{"message":"This request was rejected due to a violation. Please consult with your administrator"}}'
+    c, _ = client(state, "cdse_catalogue", lambda r: httpx.Response(403, text=body, headers={"content-type": "application/json"}))
+    with pytest.raises(RateLimited):
+        c.get("https://catalogue.dataspace.copernicus.eu/odata/v1/Products")
+    assert state.connector_status("cdse_catalogue")["status"] == "paused"
+    c2, _ = client(state, "portwatch", lambda r: httpx.Response(403, text="Please sign in", headers={"content-type": "text/plain"}))
+    with pytest.raises(ConnectorStopped):
+        c2.get(PORTWATCH + "/query", params={"where": "1=1", "f": "json"})
