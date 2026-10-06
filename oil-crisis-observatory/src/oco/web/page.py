@@ -55,7 +55,7 @@ def build_page(con, state, out_path: Path, demo: bool = False) -> Path:
     data = sections.collect(con, state)
     data["generated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     data["demo"] = demo
-    js = (HERE / "svgchart.js").read_text(encoding="utf-8")
+    js = (HERE / "svgchart.js").read_text(encoding="utf-8") + "\n" + (HERE / "dashboard.js").read_text(encoding="utf-8")
     tpl = (HERE / "page_template.html").read_text(encoding="utf-8")
     img_path = data.pop("_s1_image", None)
     img = base64.b64encode(Path(img_path).read_bytes()).decode() if img_path and Path(img_path).exists() else ""

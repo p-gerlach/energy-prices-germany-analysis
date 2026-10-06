@@ -1,136 +1,253 @@
 <title>Oil Crisis Observatory</title>
 <style>
-/* Layout: research console — sticky section nav, story digest and summary tiles first, then one panel per question.
-   Fully self-contained: system fonts, inline SVG charts, no external requests. */
+/* Layout: operations console — dark icon rail on the left, KPI strip on top, one view at a time.
+   The shipping view is map-first (world map + event feed), with daily charts and a chokepoint table under it.
+   Fully self-contained: system fonts, inline SVG, no map tiles, no external requests. */
 :root{
-  --bg:#f3f5f4; --surface:#ffffff; --ink:#141a1c; --ink2:#4c5659; --muted:#7a8487; --rule:#dde2e0;
-  --accent:#a8560c; --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
-  --crit:#c3352f; --crit-bg:#fbeceb; --ok:#2b7a4b; --ok-bg:#e8f4ec; --warn:#94680a; --warn-bg:#fbf3df; --ctx:#55636a; --ctx-bg:#eceff0;
+  --bg:#edf0f3; --surface:#ffffff; --ink:#131b23; --ink2:#4d5965; --muted:#7c8793; --rule:#dde2e7;
+  --rail:#17202b; --rail-ink:#a9b6c3; --rail-on:#ffffff; --accent:#2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --water:#f1f4f7; --land:#c3ccd4; --coast:#aab5bf; --grat:#e1e7ed; --lane:#8fa6bb;
+  --dv-n2:#d03b3b; --dv-n1:#f0a29a; --dv-0:#b9bec4; --dv-p1:#86b6ef; --dv-p2:#2a78d6; --dv-na:#e3e6e9;
+  --crit:#c3352f; --crit-bg:#fbeceb; --ok:#2b7a4b; --ok-bg:#e8f4ec; --warn:#94680a; --warn-bg:#fbf3df; --ctx:#55636a; --ctx-bg:#eceff1;
   --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
   --body:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0f1314; --surface:#161c1e; --ink:#eef2f1; --ink2:#a9b3b6; --muted:#7f898c; --rule:#283033;
-  --accent:#e0913f; --s1:#3987e5; --s2:#d95926; --s3:#199e70;
-  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2d; color-scheme:dark}}
+  --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a;
+  --rail:#080c10; --rail-ink:#8592a0; --rail-on:#ffffff; --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --water:#0f171e; --land:#26323d; --coast:#33414e; --grat:#18222b; --lane:#4d6378;
+  --dv-n2:#e66767; --dv-n1:#9a4a4a; --dv-0:#6c737a; --dv-p1:#2d5f9c; --dv-p2:#5598e7; --dv-na:#2b343d;
+  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f1314; --surface:#161c1e; --ink:#eef2f1; --ink2:#a9b3b6; --muted:#7f898c; --rule:#283033;
-  --accent:#e0913f; --s1:#3987e5; --s2:#d95926; --s3:#199e70;
-  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2d; color-scheme:dark}
+  --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a;
+  --rail:#080c10; --rail-ink:#8592a0; --rail-on:#ffffff; --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --water:#0f171e; --land:#26323d; --coast:#33414e; --grat:#18222b; --lane:#4d6378;
+  --dv-n2:#e66767; --dv-n1:#9a4a4a; --dv-0:#6c737a; --dv-p1:#2d5f9c; --dv-p2:#5598e7; --dv-na:#2b343d;
+  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);margin:0}
-.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
-header.top{padding-block:28px 12px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between}
-h1{font:800 clamp(30px,5vw,44px)/1 var(--display);letter-spacing:-.01em;margin:0;text-wrap:balance}
-h1 span{color:var(--accent)}
-.asof{font:13px/1.4 var(--mono);color:var(--ink2)}
-.demo{background:var(--crit-bg);color:var(--crit);padding:10px 14px;border-radius:8px;font-weight:600;margin-block:8px}
-nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--rule);display:flex;gap:4px;overflow-x:auto;padding-block:6px}
-nav.tabs a{font:600 14px var(--body);color:var(--ink2);text-decoration:none;padding:8px 12px;border-radius:6px;white-space:nowrap}
-nav.tabs a:hover,nav.tabs a:focus-visible{background:var(--surface);color:var(--ink)}
-nav.tabs a[aria-current="true"]{color:var(--accent);background:var(--surface)}
-section{padding-block:28px 8px;scroll-margin-top:60px}
-h2{font:700 26px/1.15 var(--display);margin:0 0 6px;text-wrap:balance}
-.lede{color:var(--ink2);max-width:72ch;margin:0 0 18px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.tile{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
-.tile .lab{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.tile .val{font:700 30px/1.1 var(--display);font-variant-numeric:tabular-nums}
-.tile .val small{font:500 14px var(--body);color:var(--ink2)}
-.tile .sub{font:13px/1.4 var(--body);color:var(--ink2)}
-.chip{display:inline-block;font:600 11px/1 var(--body);text-transform:uppercase;letter-spacing:.05em;padding:5px 7px;border-radius:999px;white-space:nowrap}
-.c-crit{color:var(--crit);background:var(--crit-bg)} .c-ok{color:var(--ok);background:var(--ok-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-ctx{color:var(--ctx);background:var(--ctx-bg)}
-.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px;margin-block:12px;min-width:0}
-.panel h3{font:700 17px/1.2 var(--display);margin:2px 2px}
-.panel .note{font:13px/1.45 var(--body);color:var(--ink2);margin:4px 2px 10px}
-.chart{width:100%;min-height:200px;position:relative}
-.nodata{color:var(--muted);font-size:14px;padding:24px 4px;margin:0}
-.svgtip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;font:12px/1.4 var(--mono);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap;z-index:3}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);margin:0}
+.app{display:grid;grid-template-columns:64px minmax(0,1fr);min-height:100%}
+/* rail */
+.rail{background:var(--rail);display:flex;flex-direction:column;align-items:center;gap:4px;padding-block:12px;position:sticky;top:0;height:100vh}
+.rail .logo{width:34px;height:34px;border-radius:8px;background:var(--accent);display:grid;place-items:center;margin-bottom:12px;color:#fff;font:800 15px var(--display)}
+.rail button{all:unset;cursor:pointer;width:44px;height:44px;border-radius:10px;display:grid;place-items:center;color:var(--rail-ink);position:relative}
+.rail button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rail button:hover,.rail button:focus-visible{background:rgba(255,255,255,.08);color:var(--rail-on)}
+.rail button[aria-current="true"]{background:var(--accent);color:#fff}
+.rail button .tt{display:none;position:absolute;left:52px;top:50%;transform:translateY(-50%);background:var(--rail);color:#fff;padding:5px 9px;border-radius:6px;white-space:nowrap;font:600 12px var(--body);z-index:20}
+.rail button:hover .tt,.rail button:focus-visible .tt{display:block}
+/* main */
+.main{min-width:0;padding-inline:20px;padding-block:0 40px}
+.topbar{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 20px;padding-block:14px 10px}
+.topbar h1{font:800 22px/1.1 var(--display);margin:0;letter-spacing:.01em}
+.topbar h1 span{color:var(--ink2);font-weight:600}
+.asof{font:12px/1.4 var(--mono);color:var(--ink2)}
+.demo{background:var(--crit-bg);color:var(--crit);padding:8px 12px;border-radius:8px;font-weight:600;margin-block:4px 10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;min-width:0}
+.kpi .lab{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .val{font:700 24px/1.15 var(--display);font-variant-numeric:tabular-nums}
+.kpi .val small{font:500 12px var(--body);color:var(--ink2)}
+.kpi .sub{font:12px/1.35 var(--body);color:var(--ink2);overflow-wrap:anywhere}
+.view{display:grid;gap:14px}
+.view[hidden]{display:none}
+.vhead h2{font:700 24px/1.15 var(--display);margin:4px 0 2px;text-wrap:balance}
+.vhead p{color:var(--ink2);margin:0;max-width:80ch}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px;min-width:0}
+.panel h3{font:700 15px/1.25 var(--body);margin:0 0 2px}
+.panel .note{font:12.5px/1.45 var(--body);color:var(--ink2);margin:2px 0 10px}
+.phead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:6px 12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+/* map area */
+.mapgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.mappanel{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.mapbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--rule)}
+.mapbar h3{margin:0}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:5px 10px;font:600 12px var(--body);color:var(--ink2)}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.maphost{position:relative;background:var(--water);touch-action:none}
+.worldsvg{display:block;width:100%;height:auto;cursor:grab}
+.worldsvg.dragging{cursor:grabbing}
+.bub{stroke:var(--surface);cursor:pointer;opacity:.92;transition:r .25s ease}
+.bub:hover,.bub.sel{opacity:1;stroke:var(--ink)}
+.bub:focus-visible{outline:none;stroke:var(--accent)}
+.dv-n2{fill:var(--dv-n2)} .dv-n1{fill:var(--dv-n1)} .dv-0{fill:var(--dv-0)} .dv-p1{fill:var(--dv-p1)} .dv-p2{fill:var(--dv-p2)} .dv-na{fill:var(--dv-na)}
+.port{stroke:var(--surface)} .port-bypass{fill:var(--s4)} .port-gulf{fill:var(--s5)}
+.lanes{opacity:.55}
+.maplab{fill:var(--ink2);paint-order:stroke;stroke:var(--water);stroke-width:3px;stroke-linejoin:round;font-family:var(--body);pointer-events:none}
+.maplab.strong{fill:var(--ink);font-weight:700}
+.mapctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+.mapctl button{all:unset;cursor:pointer;width:30px;height:30px;border-radius:6px;background:var(--surface);border:1px solid var(--rule);display:grid;place-items:center;font:700 16px var(--body);color:var(--ink)}
+.mapctl button:focus-visible{outline:2px solid var(--accent)}
+.maplegend{position:absolute;left:10px;bottom:10px;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;font:11.5px/1.5 var(--body);color:var(--ink2);max-width:min(330px,calc(100% - 20px))}
+.maplegend .row{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
+.maplegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.maplegend i.dia{border-radius:1px;transform:rotate(45deg);width:8px;height:8px}
+.maplegend i.ln{border-radius:0;height:2px;width:14px;background:var(--lane)}
+.timeline{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-top:1px solid var(--rule)}
+.timeline button.play{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;background:var(--accent);display:grid;place-items:center}
+.timeline button.play svg{width:14px;height:14px;fill:#fff}
+.timeline button.play:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tdate{font:700 18px/1 var(--display);font-variant-numeric:tabular-nums;min-width:96px}
+.trange{display:grid;gap:4px;min-width:0}
+.trange input{width:100%;accent-color:var(--accent)}
+.tevents{display:flex;flex-wrap:wrap;gap:6px}
+.tevents button{all:unset;cursor:pointer;font:600 11.5px var(--body);color:var(--ink2);border:1px solid var(--rule);border-radius:999px;padding:2px 9px}
+.tevents button:hover,.tevents button:focus-visible{color:var(--ink);border-color:var(--ink2)}
+.maptip{max-width:260px;white-space:normal}
+/* feed */
+.feed{display:flex;flex-direction:column;gap:0;padding:0;max-height:640px;overflow:auto;overscroll-behavior:contain}
+.feed h3{padding:12px 14px 6px;margin:0;position:sticky;top:0;background:var(--surface);z-index:1;border-bottom:1px solid var(--rule)}
+.fitem{padding:10px 14px;border-bottom:1px solid var(--rule);display:grid;gap:3px}
+.fitem .t{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.fitem .d{color:var(--ink2);font-size:12.5px;overflow-wrap:anywhere}
+.fitem .m{font:11px var(--mono);color:var(--muted)}
+/* charts */
+.chart{width:100%;min-height:180px;position:relative}
+.nodata{color:var(--muted);font-size:13px;padding:18px 2px;margin:0}
+.svgtip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;font:12px/1.45 var(--mono);color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.14);white-space:nowrap;z-index:6}
 .svgtip .d{color:var(--ink2)}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
+.donutwrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.donutlegend{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:13px;min-width:0;flex:1}
+.donutlegend li{display:grid;grid-template-columns:12px minmax(0,1fr) 44px 44px;gap:8px;align-items:center}
+.donutlegend .sw{width:12px;height:12px;border-radius:3px}
+.donutlegend .pc,.donutlegend .ref{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.donutlegend .ref{color:var(--muted)}
+.donutlegend li.hd{font:600 10.5px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+/* tables */
 .tablewrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:600px;font-size:14px}
-.tablewrap table.small{min-width:0}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
-th{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.mono{font-family:var(--mono);font-size:13px}
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin-block:4px 10px}
-.filters button{font:600 13px var(--body);color:var(--ink2);background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:6px 12px;cursor:pointer}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:13px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--rule);vertical-align:middle}
+th{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+th button{all:unset;cursor:pointer} th button:focus-visible{outline:2px solid var(--accent)}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+th.num{text-align:right}
+tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)} tr.pick[aria-selected="true"] td{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:0}
+.mono{font-family:var(--mono);font-size:12.5px}
+.chip{display:inline-block;font:600 10.5px/1 var(--body);text-transform:uppercase;letter-spacing:.05em;padding:4px 7px;border-radius:999px;white-space:nowrap}
+.c-crit{color:var(--crit);background:var(--crit-bg)} .c-ok{color:var(--ok);background:var(--ok-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-ctx{color:var(--ctx);background:var(--ctx-bg)}
+.why{font:12px/1.45 var(--mono);color:var(--ink2);overflow-wrap:break-word}
+td.why{min-width:300px}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.filters button{font:600 12.5px var(--body);color:var(--ink2);background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:5px 11px;cursor:pointer}
 .filters button[aria-pressed="true"]{color:var(--surface);background:var(--ink);border-color:var(--ink)}
-details.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;margin-block:8px;min-width:0}
-details.card summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;list-style:none}
+details.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;min-width:0}
+details.card summary{cursor:pointer;padding:11px 14px;display:flex;gap:10px;align-items:flex-start;list-style:none}
 details.card summary::-webkit-details-marker{display:none}
 details.card summary .q{font-weight:600;overflow-wrap:anywhere}
-details.card summary .meta{font:12px var(--mono);color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+details.card summary .meta{font:11.5px var(--mono);color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
 details.card .body{padding:0 14px 14px;display:grid;gap:10px}
-h4{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:6px 0 2px}
+h4{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:6px 0 2px}
 ul.plain{margin:0;padding-left:18px}
-.callout{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 12px;border-radius:0 6px 6px 0;font-size:14px}
-.why{font:12.5px/1.45 var(--mono);color:var(--ink2);overflow-wrap:break-word}
-td.why{min-width:300px}
-.story{display:grid;gap:10px}
-.story .item{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;min-width:0}
-.story .item .t{font-weight:600}
-.story .item .d{color:var(--ink2);font-size:14px}
-a{color:var(--s1)}
+.callout{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 12px;border-radius:0 6px 6px 0;font-size:13px}
+.cards{display:grid;gap:8px}
+a{color:var(--accent)}
 .sat img{border-radius:8px;border:1px solid var(--rule);display:block;max-width:100%;background:#fff}
-footer{color:var(--muted);font-size:13px;border-top:1px solid var(--rule);margin-top:32px;padding-top:14px}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);margin-top:24px;padding-top:12px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:1100px){.mapgrid{grid-template-columns:minmax(0,1fr)} .feed{max-height:420px}}
+@media (max-width:720px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{flex-direction:row;height:auto;position:sticky;top:env(safe-area-inset-top,0px);z-index:30;padding:6px 16px;overflow-x:auto;justify-content:flex-start}
+  .rail .logo{margin:0 6px 0 0;flex:none}
+  .rail button{flex:none;width:40px;height:40px}
+  .rail button .tt{display:none!important}
+  .main{padding-inline:16px}
+  .maplegend{position:static;margin:8px;max-width:none}
+  .timeline{grid-template-columns:auto minmax(0,1fr)} .trange{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){.bub{transition:none}}
 </style>
 
-<div class="wrap">
-<header class="top">
-  <div><h1>Oil Crisis <span>Observatory</span></h1><div class="asof" id="asof"></div></div>
-  <div class="asof">Built from the local database · all times UTC · charts are self-contained</div>
-</header>
-<div id="demo" class="demo" hidden>SYNTHETIC DEMONSTRATION DATA — NOT LIVE</div>
-<nav class="tabs" aria-label="Sections" id="nav"></nav>
+<div class="app">
+<nav class="rail" aria-label="Views" id="rail"><div class="logo" aria-hidden="true">OC</div></nav>
+<div class="main">
+  <header class="topbar">
+    <h1>Oil Crisis Observatory <span id="vtitle"></span></h1>
+    <div class="asof" id="asof"></div>
+  </header>
+  <div id="demo" class="demo" hidden>SYNTHETIC DEMONSTRATION DATA — NOT LIVE</div>
+  <div class="kpis" id="kpis"></div>
 
-<section id="stories">
-  <h2>Story finder</h2>
-  <p class="lede">The biggest departures from normal, news claims the data support or contradict, and what upcoming releases will settle. These are leads to check, not conclusions.</p>
-  <div class="story" id="story"></div>
-</section>
+  <!-- ===== Shipping (map) ===== -->
+  <section class="view" data-view="shipping" id="v-shipping">
+    <div class="mapgrid">
+      <div class="panel mappanel">
+        <div class="mapbar">
+          <h3>Chokepoint transits</h3>
+          <div class="seg" id="typeSeg" role="group" aria-label="Vessel type"></div>
+          <div class="seg" id="regionSeg" role="group" aria-label="Map region"></div>
+        </div>
+        <div class="maphost" id="map">
+          <div class="mapctl"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zreset" aria-label="Show whole world">⤢</button></div>
+          <div class="maplegend" id="maplegend"></div>
+        </div>
+        <div class="timeline">
+          <button type="button" class="play" id="play" aria-label="Play history"><svg viewBox="0 0 14 14"><path id="playicon" d="M3 1.5v11l9-5.5z"/></svg></button>
+          <div class="tdate" id="tdate"></div>
+          <div class="trange"><input type="range" id="slider" min="0" max="0" step="1" aria-label="Date shown on the map"><div class="tevents" id="tevents"></div></div>
+        </div>
+      </div>
+      <div class="panel feed" id="feed"><h3>Alerts and leads</h3></div>
+    </div>
+    <div class="grid3">
+      <div class="panel"><div class="phead"><div><h3 id="h-bars"></h3><p class="note">Vessel transits per day by type, last 14 days to the selected date · IMF PortWatch (AIS)</p></div></div><div class="chart" id="c-bars"></div></div>
+      <div class="panel"><div class="phead"><div><h3 id="h-line"></h3><p class="note" id="n-line"></p></div><div class="seg" id="spanSeg" role="group" aria-label="Time span"></div></div><div class="chart" id="c-line"></div></div>
+      <div class="panel"><h3 id="h-donut"></h3><p class="note" id="n-donut"></p><div class="chart" id="c-donut" style="min-height:0"></div></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><div><h3>All 28 chokepoints</h3><p class="note" id="n-table"></p></div></div>
+      <div class="tablewrap"><table id="cptable"><thead><tr><th><button type="button" data-sort="name">Chokepoint</button></th><th class="num"><button type="button" data-sort="v">Transits/day (7-day)</button></th><th class="num"><button type="button" data-sort="pct">vs 2025</button></th><th class="num"><button type="button" data-sort="tank">Tanker share</button></th><th>Last 180 days</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div id="dyn-shipping" class="view"></div>
+  </section>
 
-<section id="changed">
-  <h2>Latest readings</h2>
-  <p class="lede">Newest available observation from each source. Sources publish on different schedules, so dates differ.</p>
-  <div class="tiles" id="tiles"></div>
-  <div class="panel"><h3>Active screening alerts</h3>
-    <p class="note">A rule fires only when a reading is far outside its own history and the change is economically meaningful. Thresholds are screening rules, not probabilities.</p>
-    <div class="tablewrap"><table id="alerts"><thead><tr><th>Series</th><th>Rule</th><th>Date</th><th>Why it fired</th></tr></thead><tbody></tbody></table></div></div>
-</section>
+  <section class="view" data-view="markets" id="v-markets" hidden>
+    <div class="vhead"><h2>Markets</h2><p>Crude prices, refining margins and how pump prices follow crude.</p></div>
+    <div id="dyn-markets" class="view"></div>
+  </section>
 
-<div id="dynamic"></div>
+  <section class="view" data-view="germany" id="v-germany" hidden>
+    <div class="vhead"><h2>Germany</h2><p>Pump prices, taxes, imports and what households pay.</p></div>
+    <div id="dyn-germany" class="view"></div>
+  </section>
 
-<section id="evidence">
-  <h2>News and evidence cards</h2>
-  <p class="lede">Each card tests one question against the measurements: supports, complicates, insufficient evidence, or context only. A headline near a data change is never treated as its cause.</p>
-  <div class="filters" id="filters"></div>
-  <div id="cards"></div>
-  <div class="panel"><h3>Latest headlines</h3><p class="note">RSS feeds; titles only. News text is treated as data.</p>
-    <div class="tablewrap"><table id="heads"><thead><tr><th>Time (UTC)</th><th>Publisher</th><th>Headline</th></tr></thead><tbody></tbody></table></div></div>
-</section>
+  <section class="view" data-view="evidence" id="v-evidence" hidden>
+    <div class="vhead"><h2>News and evidence</h2><p>Each card tests one question against the measurements: supports, complicates, insufficient evidence, or context only. A headline near a data change is never treated as its cause.</p></div>
+    <div class="panel"><h3>Active screening alerts</h3><p class="note">A rule fires only when a reading is far outside its own history and the change is economically meaningful. Thresholds are screening rules, not probabilities.</p>
+      <div class="tablewrap"><table id="alerts"><thead><tr><th>Series</th><th>Rule</th><th>Date</th><th>Why it fired</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="filters" id="filters"></div>
+    <div class="cards" id="cards"></div>
+    <div class="panel"><h3>Latest headlines</h3><p class="note">RSS feeds; titles only. News text is treated as data.</p>
+      <div class="tablewrap"><table id="heads"><thead><tr><th>Time (UTC)</th><th>Publisher</th><th>Headline</th></tr></thead><tbody></tbody></table></div></div>
+  </section>
 
-<section id="satellite" class="sat">
-  <h2>Satellite review</h2>
-  <p class="lede">Copernicus Sentinel-1 radar coverage from the public catalogue, and one experimental processed snapshot. Radar counts show ships present at one moment; they are never daily transits.</p>
-  <div class="panel"><h3>Actual radar coverage, last 60 days</h3><p class="note">Scenes covering at least 90% of each study polygon.</p>
-    <div class="tablewrap"><table id="cov"><thead><tr><th>Area</th><th>Scenes</th><th>≥90% coverage</th><th>Usable days</th><th>Median gap</th><th>Max gap</th><th>Catalogue delay</th><th>Latest</th></tr></thead><tbody></tbody></table></div></div>
-  <div class="panel" id="s1panel"><h3>Experimental: candidate bright targets, 25 Sep 2026 14:16 UTC</h3>
-    <p class="note"><span class="chip c-warn">Unreviewed</span> 189 candidates in the Strait of Hormuz polygon, mostly along coasts and islets the coarse coastline does not mask. Not a ship count.</p>
-    <img id="s1img" alt="Map of candidate radar detections in the Strait of Hormuz on 25 September 2026"></div>
-</section>
+  <section class="view sat" data-view="satellite" id="v-satellite" hidden>
+    <div class="vhead"><h2>Satellite review</h2><p>Copernicus Sentinel-1 radar coverage from the public catalogue, and one experimental processed snapshot. Radar counts show ships present at one moment; they are never daily transits.</p></div>
+    <div class="panel"><h3>Actual radar coverage, last 60 days</h3><p class="note">Scenes covering at least 90% of each study polygon.</p>
+      <div class="tablewrap"><table id="cov"><thead><tr><th>Area</th><th>Scenes</th><th>≥90% coverage</th><th>Usable days</th><th>Median gap</th><th>Max gap</th><th>Catalogue delay</th><th>Latest</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="panel" id="s1panel"><h3>Experimental: candidate bright targets, 25 Sep 2026 14:16 UTC</h3>
+      <p class="note"><span class="chip c-warn">Unreviewed</span> 189 candidates in the Strait of Hormuz polygon, mostly along coasts and islets the coarse coastline does not mask. Not a ship count.</p>
+      <img id="s1img" alt="Map of candidate radar detections in the Strait of Hormuz on 25 September 2026"></div>
+  </section>
 
-<section id="health">
-  <h2>Source health</h2>
-  <p class="lede">A connector counts as tested only after a real data fetch.</p>
-  <div class="panel"><div class="tablewrap"><table id="conn"><thead><tr><th>Connector</th><th>Status</th><th>Credential</th><th>Last check</th></tr></thead><tbody></tbody></table></div></div>
-  <div class="panel"><h3>Excluded on purpose (zero-charge policy)</h3><ul class="plain note" id="excl"></ul></div>
-</section>
+  <section class="view" data-view="sources" id="v-sources" hidden>
+    <div class="vhead"><h2>Sources</h2><p>A connector counts as tested only after a real data fetch.</p></div>
+    <div class="panel"><div class="tablewrap"><table id="conn"><thead><tr><th>Connector</th><th>Status</th><th>Credential</th><th>Last check</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="panel"><h3>Excluded on purpose (zero-charge policy)</h3><ul class="plain note" id="excl"></ul></div>
+  </section>
 
-<footer>Sources: U.S. EIA; European Central Bank; European Commission Weekly Oil Bulletin; IMF PortWatch; JODI; Eurostat; Tankerkönig / Markttransparenzstelle für Kraftstoffe (where configured); tagesschau; BBC News; Copernicus Data Space Ecosystem (contains modified Copernicus Sentinel data 2026); Natural Earth. Regenerate with <span class="mono">uv run oco build-page</span>; live dashboard: <span class="mono">uv run oco dashboard</span>.</footer>
+  <footer>Sources: IMF PortWatch (chokepoint transits, port estimates, shipping-lane drawing); U.S. EIA; European Central Bank; European Commission Weekly Oil Bulletin; JODI; Eurostat; Tankerkönig / MTS-K (where configured); tagesschau; BBC News; Copernicus Data Space Ecosystem (contains modified Copernicus Sentinel data 2026); Natural Earth. Regenerate with <span class="mono">uv run oco build-page</span>; live dashboard: <span class="mono">uv run oco dashboard</span>.</footer>
+</div>
 </div>
 
 <script>
@@ -142,47 +259,153 @@ const IMG = "__IMG__";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt = (v, d=2) => v==null || Number.isNaN(v) ? "–" : Number(v).toLocaleString("en-GB",{minimumFractionDigits:d,maximumFractionDigits:d});
-$("#asof").textContent = "Built " + D.generated;
+$("#asof").textContent = "Built " + D.generated + " · all times UTC";
 if (D.demo) $("#demo").hidden = false;
 
-// story finder
+// ---------------- views & rail ----------------
+const ICONS = {
+  shipping:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>',
+  markets:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7 15l4-4 3 3 5-6"/></svg>',
+  germany:'<svg viewBox="0 0 24 24"><path d="M6 20V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v15M4 20h12M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M8 8h4"/></svg>',
+  evidence:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg>',
+  satellite:'<svg viewBox="0 0 24 24"><path d="M5 15l4 4M3.5 20.5l3-3M13 5l6 6-4 4-6-6zM8 10l-3 3 6 6 3-3M17 3l4 4"/></svg>',
+  sources:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>'};
+const VIEWS = [["shipping","Shipping map"],["markets","Markets"],["germany","Germany"],["evidence","News & evidence"],["satellite","Satellite"],["sources","Sources"]];
+$("#rail").insertAdjacentHTML("beforeend", VIEWS.map(([v,l]) => `<button type="button" data-v="${v}" aria-label="${l}">${ICONS[v]}<span class="tt">${l}</span></button>`).join(""));
+const pending = {};  // charts drawn when their view first becomes visible (hidden views have no width)
+function showView(v) {
+  if (!VIEWS.some(x => x[0] === v)) v = "shipping";
+  document.querySelectorAll(".view[data-view]").forEach(s => s.hidden = s.dataset.view !== v);
+  document.querySelectorAll("#rail button").forEach(b => b.setAttribute("aria-current", b.dataset.v === v));
+  $("#vtitle").textContent = "· " + VIEWS.find(x => x[0] === v)[1];
+  (pending[v] || []).splice(0).forEach(f => f());
+  requestAnimationFrame(() => window.redrawCharts && window.redrawCharts());
+  if (v === "shipping" && window.redrawShip) window.redrawShip();
+}
+$("#rail").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; try { history.replaceState(null, "", "#" + b.dataset.v); } catch (err) {} showView(b.dataset.v); window.scrollTo(0, 0); });
+
+// ---------------- KPI strip ----------------
+$("#kpis").innerHTML = D.tiles.slice(0, 6).map(t => `<div class="kpi"><div class="lab" title="${esc(t.lab)}">${esc(t.lab)}</div><div class="val">${esc(t.val)} <small>${esc(t.unit)}</small></div><div class="sub">${esc(t.sub)}${t.chip ? ` <span class="chip ${t.chip[1]}">${esc(t.chip[0])}</span>` : ""}</div></div>`).join("");
+
+// ---------------- feed (story finder + alerts) ----------------
 const ST_CHIP = {unusual:["Unusual","c-crit"],contradicted:["Data contradict","c-crit"],supported:["Data support","c-ok"],pending:["Waiting for data","c-warn"],context:["Context","c-ctx"]};
 const items = (D.digest && D.digest.items) || [];
-$("#story").innerHTML = items.length ? items.map(it => { const c = ST_CHIP[it.kind] || [it.kind,"c-ctx"];
-  return `<div class="item"><span class="chip ${c[1]}">${c[0]}</span><div style="min-width:0"><div class="t">${esc(it.title)}</div><div class="d">${esc(it.detail)}</div></div></div>`; }).join("")
-  : '<p class="nodata">No digest yet. Run <span class="mono">oco analyse</span>.</p>';
+$("#feed").insertAdjacentHTML("beforeend", (items.map(it => { const c = ST_CHIP[it.kind] || [it.kind,"c-ctx"];
+  return `<div class="fitem"><div><span class="chip ${c[1]}">${c[0]}</span></div><div class="t">${esc(it.title)}</div><div class="d">${esc(it.detail)}</div></div>`; }).join("")
+  + D.alerts.slice(0, 12).map(a => `<div class="fitem"><div><span class="chip c-crit">Alert</span> <span class="m">${esc(a.d)}</span></div><div class="t">${esc(a.n)}</div><div class="d why">${esc(a.why)}</div></div>`).join(""))
+  || '<p class="nodata" style="padding:14px">No alerts or leads yet. Run <span class="mono">oco analyse</span>.</p>');
 
-// tiles + alerts
-$("#tiles").innerHTML = D.tiles.map(t=>`<div class="tile"><div class="lab">${esc(t.lab)}</div><div class="val">${esc(t.val)} <small>${esc(t.unit)}</small></div><div class="sub">${esc(t.sub)}</div>${t.chip?`<div><span class="chip ${t.chip[1]}">${esc(t.chip[0])}</span></div>`:""}</div>`).join("");
-$("#alerts tbody").innerHTML = D.alerts.slice(0,16).map(a=>`<tr><td>${esc(a.n)}<div class="mono" style="color:var(--muted)">${esc(a.s)}</div></td><td class="num">${esc(a.r)}</td><td class="num">${esc(a.d)}</td><td class="why">${esc(a.why)}</td></tr>`).join("") || '<tr><td colspan="4" class="nodata">No active alerts.</td></tr>';
-
-// dynamic sections with charts and tables
-const dyn = $("#dynamic");
+// ---------------- dynamic sections into views ----------------
+const SECTION_VIEW = {shipping:"shipping", bypass:"shipping", market:"markets", margins:"markets", passthrough:"germany", fuel:"germany", pumps:"germany", tax:"germany", households:"germany"};
 D.sections.forEach(sec => {
-  const s = document.createElement("section"); s.id = sec.id;
-  s.innerHTML = `<h2>${esc(sec.title)}</h2><p class="lede">${esc(sec.lede||"")}</p>`;
-  const grid = document.createElement("div"); grid.className = (sec.charts||[]).length > 1 ? "grid2" : ""; s.appendChild(grid);
-  (sec.charts||[]).forEach((c, i) => {
+  const v = SECTION_VIEW[sec.id] || "markets";
+  const host = $("#dyn-" + v);
+  const box = document.createElement("div"); box.className = "view"; box.id = "sec-" + sec.id;
+  box.innerHTML = `<div class="vhead"><h2>${esc(sec.title)}</h2><p>${esc(sec.lede||"")}</p></div>`;
+  const grid = document.createElement("div"); grid.className = "grid2"; box.appendChild(grid);
+  (sec.charts||[]).forEach(c => {
     const p = document.createElement("div"); p.className = "panel";
     p.innerHTML = `<h3>${esc(c.title)}</h3><p class="note">${esc(c.note||"")}</p>`;
-    const host = document.createElement("div"); host.className = "chart"; p.appendChild(host);
-    (c.wide ? s : grid).appendChild(p);
-    if (c.empty) host.innerHTML = `<p class="nodata">${esc(c.empty)}</p>`;
-    else requestAnimationFrame(() => lineChart(host, {series:c.series, ytitle:c.ytitle, band:c.band, vlines:c.vlines, digits:c.digits, height:c.height, zero:c.zero, xnumeric:c.weeks_axis, xprefix:c.weeks_axis?"week ":""}));
+    const ch = document.createElement("div"); ch.className = "chart"; p.appendChild(ch); grid.appendChild(p);
+    if (c.empty) ch.innerHTML = `<p class="nodata">${esc(c.empty)}</p>`;
+    else (pending[v] = pending[v] || []).push(() => lineChart(ch, {series:c.series, ytitle:c.ytitle, band:c.band, vlines:c.vlines, digits:c.digits, height:c.height, zero:c.zero, xnumeric:c.weeks_axis, xprefix:c.weeks_axis?"week ":""}));
   });
   (sec.tables||[]).forEach(t => {
     const p = document.createElement("div"); p.className = "panel";
     p.innerHTML = `<h3>${esc(t.title)}</h3><p class="note">${esc(t.note||"")}</p><div class="tablewrap"><table><thead><tr>${t.columns.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${typeof v==="number"?"num":""}">${typeof v==="number"?fmt(v,(t.digits||[])[i]??2):esc(v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${t.columns.length}" class="nodata">${esc(t.empty||"No data yet.")}</td></tr>`}</tbody></table></div>`;
-    s.appendChild(p);
+    box.appendChild(p);
   });
-  dyn.appendChild(s);
+  host.appendChild(box);
 });
 
-// nav
-const navItems = [["stories","Story finder"],["changed","Latest"],...D.sections.map(s=>[s.id, s.nav || s.title]),["evidence","Evidence"],["satellite","Satellite"],["health","Sources"]];
-$("#nav").innerHTML = navItems.map(([id,l])=>`<a href="#${id}">${esc(l)}</a>`).join("");
+// ---------------- shipping map view ----------------
+(function () {
+  const W = D.world;
+  if (!W || W.error || !W.cps) {
+    $("#map").innerHTML = `<p class="nodata" style="padding:24px">${W && W.error ? "Map could not be built: " + esc(W.error) : "No world map data yet. Run <span class='mono'>uv run oco backfill --source portwatch_geo --source portwatch</span>, then <span class='mono'>oco build-page</span>."}</p>`;
+    return;
+  }
+  const TYPES = [["tanker","Tankers","var(--s1)"],["container","Containers","var(--s2)"],["dry_bulk","Dry bulk","var(--s3)"],["general_cargo","General cargo","var(--s4)"],["roro","Ro-ro","var(--s5)"]];
+  const byslug = Object.fromEntries(W.cps.map(c => [c.slug, c]));
+  let sel = byslug.hormuz ? "hormuz" : W.cps[0].slug, type = "all", span = 365, playing = null;
+  const lastI = Math.max(...W.cps.map(c => SHIP.lastIndex(c)));
+  let day = lastI;
 
-// cards
+  $("#typeSeg").innerHTML = [["all","All"],["tanker","Tankers"],["container","Containers"],["dry_bulk","Dry bulk"]].map(([k,l]) => `<button type="button" data-k="${k}" aria-pressed="${k===type}">${l}</button>`).join("");
+  const REGIONS = [["world","World",null],["gulf","Gulf & Red Sea",[48,22,5.5]],["europe","Europe",[15,48,4.5]],["asia","East Asia",[118,22,3.2]]];
+  $("#regionSeg").innerHTML = REGIONS.map(([k,l]) => `<button type="button" data-k="${k}" aria-pressed="${k==="world"}">${l}</button>`).join("");
+  $("#spanSeg").innerHTML = [[90,"90 d"],[365,"1 y"],[100000,"All"]].map(([k,l]) => `<button type="button" data-k="${k}" aria-pressed="${k===span}">${l}</button>`).join("");
+  $("#maplegend").innerHTML = `<div class="row"><b style="color:var(--ink)">Circle size</b> transits per day (7-day mean) · <b style="color:var(--ink)">colour</b> vs ${esc(W.base_label)}</div>
+    <div class="row">${SHIP.CHANGE.map(c => `<span><i style="background:var(--${c.cls})"></i>${c.label}</span>`).join("")}</div>
+    <div class="row"><span><i class="dia" style="background:var(--s4)"></i>Bypass oil port</span><span><i class="dia" style="background:var(--s5)"></i>Gulf oil port</span><span><i class="ln"></i>Main shipping lanes (IMF drawing, not traffic)</span></div>`;
+  const slider = $("#slider"); slider.max = lastI; slider.value = day;
+  $("#tevents").innerHTML = W.events.map(e => `<button type="button" data-x="${e.x}">${esc(e.label)} · ${e.x}</button>`).join("") + `<button type="button" data-x="latest">Latest</button>`;
+
+  const map = worldMap($("#map"), W, { selected: sel, onSelect: s => { sel = s; panels(); table(); } });
+  function setDay(i, full = true) { day = Math.max(0, Math.min(lastI, i)); slider.value = day; $("#tdate").textContent = dayToISO(W.start, day); map.update(day, type); if (full) { panels(); table(); } }
+
+  function panels() {
+    const cp = byslug[sel], nm = cp.name;
+    // stacked bars: last 14 days to the selected date
+    const x = [], from = Math.max(0, day - 13);
+    for (let i = from; i <= day; i++) x.push(dayToISO(W.start, i));
+    $("#h-bars").textContent = nm + ": transits by vessel type";
+    stackedBars($("#c-bars"), { title: nm, x, height: 300, series: TYPES.map(([k, l, c]) => ({ name: l, color: c, y: x.map((_, j) => (cp.s[k] || [])[from + j] ?? null) })) });
+    // line: daily total and 7-day mean with the 2025 average as reference
+    const s0 = Math.max(0, day - span + 1), xs = [], raw = [], m7 = [];
+    for (let i = s0; i <= day; i++) { xs.push(dayToISO(W.start, i)); raw.push(SHIP.dayValue(cp, type, i)); const v = SHIP.mean7(cp, type, i); m7.push(v == null ? null : Math.round(v * 10) / 10); }
+    const b = SHIP.baseOf(cp, type);
+    const tn = {all:"all vessels",tanker:"tankers",container:"container ships",dry_bulk:"dry bulk carriers"}[type];
+    $("#h-line").textContent = nm + ": " + tn + " per day";
+    $("#n-line").textContent = `Daily count and 7-day mean; dashed line = ${W.base_label} (${fmt(b, 1)} per day)`;
+    lineChart($("#c-line"), { series: [{ name: "Daily", color: "var(--muted)", width: 1, opacity: 0.6, x: xs, y: raw, noDot: true }, { name: "7-day mean", color: "var(--s1)", x: xs, y: m7 },
+      ...(b != null ? [{ name: W.base_label, color: "var(--ink2)", dash: "4 4", width: 1.2, x: [xs[0], xs[xs.length - 1]], y: [b, b], noDot: true }] : [])],
+      ytitle: "transits per day", digits: 0, height: 300, zero: true, vlines: W.events.map(e => ({ x: e.x, label: "" })) });
+    // donut: last 10 days mix vs 2025 mix
+    let tot = 0; const sums = TYPES.map(([k]) => { let s = 0; for (let i = Math.max(0, day - 9); i <= day; i++) s += (cp.s[k] || [])[i] || 0; tot += s; return s; });
+    const btot = TYPES.reduce((s, [k]) => s + (cp.base[k] || 0), 0);
+    $("#h-donut").textContent = nm + ": vessel mix, last 10 days";
+    $("#n-donut").textContent = `Share of transits by vessel type (centre: transits per day). Grey column = ${W.base_label} mix.`;
+    donut($("#c-donut"), { days: 10, center: "per day", refLabel: W.base_label.replace(" average", ""), items: TYPES.map(([k, l, c], j) => ({ name: l, color: c, value: sums[j], ref: btot ? (cp.base[k] || 0) / btot : null })) });
+  }
+
+  let sortKey = "pct", sortDir = 1;
+  function table() {
+    const rows = W.cps.map(cp => { const v = SHIP.mean7(cp, type, day), b = SHIP.baseOf(cp, type), tv = SHIP.mean7(cp, "tanker", day), av = SHIP.mean7(cp, "all", day);
+      const spark = []; for (let i = Math.max(0, day - 179); i <= day; i += 3) spark.push(SHIP.mean7(cp, type, i));
+      return { cp, name: cp.name, v, pct: v != null && b ? v / b - 1 : null, tank: tv != null && av ? tv / av : null, spark, b }; });
+    rows.sort((a, z) => { const A = a[sortKey], Z = z[sortKey]; if (A == null) return 1; if (Z == null) return -1; return (A > Z ? 1 : A < Z ? -1 : 0) * sortDir; });
+    $("#n-table").textContent = `7-day mean to ${dayToISO(W.start, day)} for ${({all:"all vessels",tanker:"tankers",container:"container ships",dry_bulk:"dry bulk carriers"})[type]}. Click a row to show it above. Sparkline dashed line = ${W.base_label}.`;
+    $("#cptable tbody").innerHTML = rows.map(r => { const cls = r.pct == null ? "dv-na" : SHIP.CHANGE.find(c => r.pct <= c.max).cls;
+      return `<tr class="pick" data-s="${r.cp.slug}" aria-selected="${r.cp.slug === sel}" tabindex="0"><td><span class="dot" style="background:var(--${cls})"></span>${esc(r.name)}${r.cp.screen ? ' <span class="chip c-ctx">oil route</span>' : ""}</td><td class="num">${fmt(r.v, 1)}</td><td class="num">${r.pct == null ? "–" : (r.pct >= 0 ? "+" : "") + fmt(r.pct * 100, 0) + "%"}</td><td class="num">${r.tank == null ? "–" : fmt(r.tank * 100, 0) + "%"}</td><td>${sparkline(r.spark, 160, 26, r.b)}</td></tr>`; }).join("");
+  }
+  $("#cptable tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-s]"); if (!tr) return; sel = tr.dataset.s; map.select(sel); panels(); table(); });
+  $("#cptable tbody").addEventListener("keydown", e => { if (e.key !== "Enter") return; const tr = e.target.closest("tr[data-s]"); if (!tr) return; sel = tr.dataset.s; map.select(sel); panels(); table(); });
+  $("#cptable thead").addEventListener("click", e => { const b = e.target.closest("button[data-sort]"); if (!b) return; const k = b.dataset.sort; sortDir = sortKey === k ? -sortDir : (k === "name" ? 1 : (k === "pct" ? 1 : -1)); sortKey = k; table(); });
+
+  const pressed = (seg, b) => seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  $("#typeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; type = b.dataset.k; pressed($("#typeSeg"), b); setDay(day); });
+  $("#spanSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; span = +b.dataset.k; pressed($("#spanSeg"), b); panels(); });
+  $("#regionSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; pressed($("#regionSeg"), b); const r = REGIONS.find(x => x[0] === b.dataset.k); if (r[2]) map.focus(r[2][0], r[2][1], r[2][2]); else map.reset(); });
+  $("#zin").onclick = () => map.zoom(1 / 1.5); $("#zout").onclick = () => map.zoom(1.5); $("#zreset").onclick = () => { map.reset(); pressed($("#regionSeg"), $("#regionSeg button")); };
+  slider.addEventListener("input", () => { stop(); setDay(+slider.value, false); });
+  slider.addEventListener("change", () => setDay(+slider.value));
+  $("#tevents").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; stop(); setDay(b.dataset.x === "latest" ? lastI : isoToDay(W.start, b.dataset.x)); });
+  function stop() { if (playing) { clearInterval(playing); playing = null; $("#playicon").setAttribute("d", "M3 1.5v11l9-5.5z"); $("#play").setAttribute("aria-label", "Play history"); panels(); table(); } }
+  $("#play").addEventListener("click", () => {
+    if (playing) return stop();
+    if (day >= lastI - 7) setDay(0, false);
+    $("#playicon").setAttribute("d", "M3 1.5h3v11H3zM8 1.5h3v11H8z"); $("#play").setAttribute("aria-label", "Pause");
+    playing = setInterval(() => { if (day >= lastI) return stop(); setDay(day + 7, false); }, 70);
+  });
+  const syncFeed = () => { const mp = $(".mappanel"), f = $("#feed"); f.style.maxHeight = innerWidth > 1100 && mp.offsetHeight ? mp.offsetHeight + "px" : ""; };
+  window.addEventListener("resize", syncFeed);
+  window.redrawShip = () => { if (!playing) panels(); syncFeed(); };
+  setDay(day);
+})();
+
+// ---------------- evidence ----------------
+$("#alerts tbody").innerHTML = D.alerts.slice(0,16).map(a=>`<tr><td>${esc(a.n)}<div class="mono" style="color:var(--muted)">${esc(a.s)}</div></td><td class="num" style="text-align:left">${esc(a.r)}</td><td class="num" style="text-align:left">${esc(a.d)}</td><td class="why">${esc(a.why)}</td></tr>`).join("") || '<tr><td colspan="4" class="nodata">No active alerts.</td></tr>';
 const REL={supports:["Supports","c-ok"],complicates:["Complicates","c-crit"],insufficient_evidence:["Insufficient evidence","c-warn"],context_only:["Context only","c-ctx"]};
 let filter="all";
 function li(a){ return a&&a.length?`<ul class="plain">${a.map(x=>`<li>${esc(typeof x==="string"?x:x.title+" — "+x.publisher)}</li>`).join("")}</ul>`:"<p class='note'>None recorded.</p>"; }
@@ -194,7 +417,7 @@ function renderCards(){
     return `<details class="card"><summary><span class="chip ${r[1]}">${r[0]}</span><div style="min-width:0"><div class="q">${esc(h?h.title:c.q)}</div><div class="meta">${esc(c.kind)} card · ${h?esc(h.publisher)+" · "+esc((h.published_at||h.discovered_at||"").slice(0,16)):esc(c.id)}</div></div></summary>
       <div class="body"><div><h4>Question tested</h4>${esc(c.q)}</div><div><h4>Assessment</h4>${esc(c.reason||"")}</div>
       ${c.temporal?`<div class="callout">${esc(c.temporal)}</div>`:""}
-      <div class="tablewrap"><table><thead><tr><th>Measurement</th><th>Latest</th><th>Previous</th><th>Change</th><th>Screening</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>Measurement</th><th class="num">Latest</th><th class="num">Previous</th><th class="num">Change</th><th>Screening</th></tr></thead><tbody>${rows}</tbody></table></div>
       ${whys?`<div><h4>Why rules fired or not</h4><ul class="plain">${whys}</ul></div>`:""}
       <div class="grid2"><div><h4>Contrary or normal observations</h4>${li(c.contrary)}</div><div><h4>Alternative explanations</h4>${li(c.alts)}</div></div>
       ${c.related&&c.related.length?`<div><h4>Related reporting (context only)</h4>${li(c.related)}</div>`:""}
@@ -207,9 +430,9 @@ const kinds=[["all","All cards"],["headline","Headline cards"],["anomaly","Alert
 $("#filters").innerHTML=kinds.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${k==="all"}">${l} (${k==="all"?D.cards.length:D.cards.filter(c=>c.kind===k).length})</button>`).join("");
 $("#filters").addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; filter=b.dataset.k; document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed",x===b)); renderCards();});
 renderCards();
-$("#heads tbody").innerHTML=D.heads.slice(0,30).map(h=>`<tr><td class="num">${esc(h.t)}${h.disc?' <span class="chip c-ctx">discovered</span>':""}</td><td>${esc(h.pub)}</td><td><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.title)}</a></td></tr>`).join("");
+$("#heads tbody").innerHTML=D.heads.slice(0,30).map(h=>`<tr><td class="mono">${esc(h.t)}${h.disc?' <span class="chip c-ctx">discovered</span>':""}</td><td>${esc(h.pub)}</td><td><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(h.title)}</a></td></tr>`).join("");
 
-// satellite + health
+// ---------------- satellite + sources ----------------
 const AOI={hormuz_strait:"Strait of Hormuz",hormuz_west_approach:"Western approach (Gulf)",gulf_of_oman_approach:"Gulf of Oman approach",fujairah_anchorage:"Fujairah anchorage"};
 $("#cov tbody").innerHTML=D.cov.map(c=>`<tr><td>${esc(AOI[c.aoi]||c.aoi)}</td><td class="num">${c.n_scenes??"–"}</td><td class="num">${c.n_scenes_covering_min_fraction??"–"}</td><td class="num">${c.distinct_usable_days??"–"}</td><td class="num">${c.median_gap_days==null?"–":fmt(c.median_gap_days,0)+" d"}</td><td class="num">${c.max_gap_days==null?"–":c.max_gap_days+" d"}</td><td class="num">${c.median_catalogue_latency_h==null?"–":fmt(c.median_catalogue_latency_h,1)+" h"}</td><td class="num">${esc(String(c.last_acquisition??"–").slice(0,16))}</td></tr>`).join("");
 if (IMG) $("#s1img").src = "data:image/png;base64," + IMG; else $("#s1panel").hidden = true;
@@ -217,11 +440,6 @@ const STS={anonymous_read_tested:["Tested, no key","c-ok"],credential_read_teste
 $("#conn tbody").innerHTML=D.conn.map(c=>{const s=STS[c.s]||[c.s,"c-ctx"]; return `<tr><td class="mono">${esc(c.c)}</td><td><span class="chip ${s[1]}">${s[0]}</span></td><td class="mono">${esc(c.cred)}</td><td class="why">${esc(c.p)}</td></tr>`;}).join("");
 $("#excl").innerHTML=D.excl.map(x=>`<li>${esc(x)}</li>`).join("");
 
-// highlight current section in nav
-try {
-  const links=[...document.querySelectorAll("nav.tabs a")];
-  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting) links.forEach(a=>a.setAttribute("aria-current",a.getAttribute("href")==="#"+e.target.id));}),{rootMargin:"-40% 0px -55% 0px"});
-  document.querySelectorAll("section").forEach(s=>obs.observe(s));
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => window.redrawCharts());
-} catch (e) {}
+showView((location.hash || "#shipping").slice(1));
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => window.redrawCharts()); } catch (e) {}
 </script>

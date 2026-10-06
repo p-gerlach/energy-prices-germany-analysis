@@ -80,6 +80,28 @@ uv run oco dashboard               # opens http://127.0.0.1:8501 ; stop with Ctr
 | Rebuild the research page | `uv run oco build-page` → `data/exports/observatory.html` (also rebuilt after every `analyse`) |
 | Pick the Tankerkönig station panel (once, after adding the key) | `uv run oco tankerkoenig build-panel` |
 
+### The world shipping map
+
+The first view of the page is a dashboard built around a world map of all 28 chokepoints IMF PortWatch tracks
+(Hormuz, Suez, Bab el-Mandeb, Malacca, Panama, the Danish straits …). Circle size = vessel transits per day
+(7-day mean); colour = change against the 2025 average. Press play to watch 2019 → today, or jump to an event.
+Click a circle (or a table row) to see that chokepoint's daily transits by vessel type, its trend, and its vessel
+mix. Gulf oil ports (Yanbu, Fujairah, Ras Tanura …) are shown as diamonds with their estimated tanker exports.
+
+What it is not: there are **no individual ship positions or tracks**. Free sources only give daily counts per
+chokepoint; ship-by-ship AIS (MarineTraffic, Kpler, MyShipTracking) is paid. The grey lane lines are IMF's static
+drawing of common routes, not measured traffic.
+
+Fetch the map's reference shapes and full history once:
+
+```bash
+uv run oco backfill --source portwatch_geo --source portwatch    # ~10 minutes, anonymous, free
+uv run oco build-page
+```
+
+Only the four oil-route chokepoints (Hormuz, Suez, Bab el-Mandeb, Cape of Good Hope) raise screening alerts; the
+others are on the map for context (`screen: true` in `config/sources.yaml` changes that).
+
 ### The research page (charts that always load)
 
 `data/exports/observatory.html` is a single file with **no external resources**: the charts are drawn as SVG by a

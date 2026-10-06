@@ -169,6 +169,20 @@ connectors:
         methods: [GET]
         path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0(/query)?$'
         content_types: [application/json, text/plain]
+      # added 2026-10-06 after a reviewed listing of the same IMF account: static reference layers for the world map
+      # (chokepoint and port locations, IMF's global shipping-lane geometry). Query only, anonymous.
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_chokepoints_database/FeatureServer/0/query$'
+        content_types: [application/json, text/plain]
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_ports_database/FeatureServer/0/query$'
+        content_types: [application/json, text/plain]
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Global_Shipping_Routes/FeatureServer/15/query$'
+        content_types: [application/json, text/plain]
 
   gdelt:
     title: "GDELT DOC 2.0 API — public discovery endpoint (artlist)"

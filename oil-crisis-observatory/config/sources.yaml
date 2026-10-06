@@ -82,15 +82,44 @@ sources:
     stale_after_days: 14            # PortWatch publishes with a provider lag of several days
     schedule: {kind: interval, every_min: 60}
     layer_url: "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0"
+    # screen: true -> included in anomaly screening (oil-relevant routes); the others feed the world map only
     chokepoints:
-      - {slug: hormuz, names: ["Strait of Hormuz"]}
-      - {slug: suez, names: ["Suez Canal"]}
-      - {slug: bab_el_mandeb, names: ["Bab el-Mandeb Strait", "Bab el-Mandeb"]}
-      - {slug: cape_good_hope, names: ["Cape of Good Hope"]}
+      - {slug: hormuz, names: ["Strait of Hormuz"], screen: true}
+      - {slug: suez, names: ["Suez Canal"], screen: true}
+      - {slug: bab_el_mandeb, names: ["Bab el-Mandeb Strait", "Bab el-Mandeb"], screen: true}
+      - {slug: cape_good_hope, names: ["Cape of Good Hope"], screen: true}
+      - {slug: panama, names: ["Panama Canal"]}
+      - {slug: bosporus, names: ["Bosporus Strait"]}
+      - {slug: malacca, names: ["Malacca Strait"]}
+      - {slug: gibraltar, names: ["Gibraltar Strait"]}
+      - {slug: dover, names: ["Dover Strait"]}
+      - {slug: oresund, names: ["Oresund Strait"]}
+      - {slug: taiwan, names: ["Taiwan Strait"]}
+      - {slug: korea, names: ["Korea Strait"]}
+      - {slug: tsugaru, names: ["Tsugaru Strait"]}
+      - {slug: luzon, names: ["Luzon Strait"]}
+      - {slug: lombok, names: ["Lombok Strait"]}
+      - {slug: ombai, names: ["Ombai Strait"]}
+      - {slug: bohai, names: ["Bohai Strait"]}
+      - {slug: torres, names: ["Torres Strait"]}
+      - {slug: sunda, names: ["Sunda Strait"]}
+      - {slug: makassar, names: ["Makassar Strait"]}
+      - {slug: magellan, names: ["Magellan Strait"]}
+      - {slug: yucatan, names: ["Yucatan Channel"]}
+      - {slug: windward, names: ["Windward Passage"]}
+      - {slug: mona, names: ["Mona Passage"]}
+      - {slug: balabac, names: ["Balabac Strait"]}
+      - {slug: bering, names: ["Bering Strait"]}
+      - {slug: mindoro, names: ["Mindoro Strait"]}
+      - {slug: kerch, names: ["Kerch Strait"]}
     fields:
       n_tanker: {name: "tanker transit calls", unit: "vessel transits per day (AIS transit calls, not barrels)"}
       n_total: {name: "all vessel transit calls", unit: "vessel transits per day (AIS transit calls)"}
       n_cargo: {name: "cargo vessel transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      n_container: {name: "container ship transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      n_dry_bulk: {name: "dry bulk transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      n_general_cargo: {name: "general cargo transit calls", unit: "vessel transits per day (AIS transit calls)"}
+      n_roro: {name: "ro-ro transit calls", unit: "vessel transits per day (AIS transit calls)"}
       capacity_tanker: {name: "tanker deadweight capacity transiting", unit: "deadweight tonnes per day (capacity, NOT measured cargo)"}
     backfill_start: "2019-01-01"
     revision_overlap_days: 30
@@ -118,6 +147,13 @@ sources:
     backfill_start: "2024-01-01"
     revision_overlap_days: 30
     page_size: 1000
+
+  portwatch_geo:
+    connector: portwatch
+    enabled: true
+    frequency: static                # reference shapes for the world map (locations, lane drawing, land outline)
+    stale_after_days: 60
+    schedule: {kind: interval, every_min: 10080}   # weekly is plenty for static reference data
 
   eia_products:
     connector: eia

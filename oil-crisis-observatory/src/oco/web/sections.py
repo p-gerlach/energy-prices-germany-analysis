@@ -203,5 +203,11 @@ def collect(con, state) -> dict:
         digest = dg.build_digest(con)
     except Exception:  # noqa: BLE001
         digest = None
-    return {"tiles": tiles(con), "alerts": alerts(con), "sections": secs, "cards": section_cards(con), "heads": headlines(con),
+    world = None
+    try:
+        from .worldmap import world_map
+        world = world_map(con)
+    except Exception as e:  # noqa: BLE001 — the map must never blank the rest of the page
+        world = {"error": f"{type(e).__name__}: {e}"}
+    return {"world": world, "tiles": tiles(con), "alerts": alerts(con), "sections": secs, "cards": section_cards(con), "heads": headlines(con),
             "cov": satellite(con, state), "conn": conn, "excl": excl, "digest": digest, "_s1_image": str(s1) if s1.exists() else None}

@@ -132,13 +132,13 @@ def export_button(sids, title, key, **kw):
             st.error(f"{type(e).__name__}: {e}")
 
 
-tabs = st.tabs(["Story finder & analyses", "What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
+tabs = st.tabs(["Observatory dashboard", "What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
 with tabs[0]:
     page = paths.exports / "observatory.html"
     if page.exists():
         import streamlit.components.v1 as components
-        st.caption("Self-contained research page (story finder, live pumps, bypass ports, rockets & feathers, margins, tax take, imports, household costs). "
-                   "Rebuilt automatically after each analysis run.")
+        st.caption("World shipping map, alerts, markets, Germany, evidence and sources in one self-contained page. Rebuilt automatically "
+                   f"after each analysis run. For full screen, open {page} in your browser.")
         components.html(page.read_text(encoding="utf-8"), height=1400, scrolling=True)
     else:
         st.info("No research page yet — run `oco analyse` (or `oco build-page`).")

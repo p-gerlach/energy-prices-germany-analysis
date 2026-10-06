@@ -103,9 +103,11 @@ def portwatch_handler(days=1500, revise=None):
             n += 3
         feats.append({"attributes": {"date": ts, "year": d.year, "month": d.month, "day": d.day, "portid": "chokepoint6",
                                      "portname": "Strait of Hormuz", "n_tanker": n, "n_total": n + 60, "n_cargo": 60,
-                                     "capacity_tanker": n * 1e5, "ObjectId": i}})
-    names = [("chokepoint1", "Suez Canal"), ("chokepoint4", "Bab el-Mandeb Strait"), ("chokepoint7", "Cape of Good Hope"),
-             ("chokepoint6", "Strait of Hormuz")]
+                                     "capacity_tanker": n * 1e5, "n_container": 20, "n_dry_bulk": 20, "n_general_cargo": 15,
+                                     "n_roro": 5, "ObjectId": i}})
+    from oco.settings import sources_config
+    names = [("chokepoint6" if cp["slug"] == "hormuz" else f"cp{k}", cp["names"][0])
+             for k, cp in enumerate(sources_config()["sources"]["portwatch"]["chokepoints"], 100)]
     seen = []
 
     def h(req):
@@ -115,7 +117,8 @@ def portwatch_handler(days=1500, revise=None):
         if req.url.path == LAYER:
             return httpx.Response(200, json={"maxRecordCount": 1000, "fields": [
                 {"name": n, "type": "esriFieldTypeDate" if n == "date" else "esriFieldTypeInteger"} for n in
-                ("date", "year", "month", "day", "portid", "portname", "n_tanker", "n_total", "n_cargo", "capacity_tanker", "ObjectId")]})
+                ("date", "year", "month", "day", "portid", "portname", "n_tanker", "n_total", "n_cargo", "capacity_tanker",
+                 "n_container", "n_dry_bulk", "n_general_cargo", "n_roro", "ObjectId")]})
         if q.get("returnDistinctValues"):
             return httpx.Response(200, json={"features": [{"attributes": {"portid": a, "portname": b}} for a, b in names]})
         where = q["where"][0]
@@ -132,7 +135,7 @@ def test_portwatch_anonymous_pagination_dates_and_revisions(ctx_factory):
     ctx = ctx_factory(h)
     res, n = run(ctx, PortWatchCollector, mode="backfill")
     assert res.status == "ok", res.message
-    assert n == 1500 * 4  # 4 fields for Hormuz; other chokepoints returned no rows
+    assert n == 1500 * 8  # 8 fields for Hormuz; other chokepoints returned no rows
     with Warehouse.writer(ctx.paths) as wh:
         df = observations(wh.con, "portwatch.hormuz.n_tanker")
     assert df["obs_start"].min().date() == date(2022, 1, 1), "local-midnight epoch must not shift the day"

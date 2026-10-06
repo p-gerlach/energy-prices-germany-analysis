@@ -185,11 +185,12 @@ def test_policy_file_is_strict():
         assert str(c.meta["trial_expiry"]) == "none"
     # PortWatch: exactly one service path, no wildcard over arcgis.com
     pw = p.connectors["portwatch"].routes
-    allowed_layers = {"Daily_Chokepoints_Data", "Daily_Ports_Data"}  # each added after an explicit review
+    allowed_layers = {"Daily_Chokepoints_Data", "Daily_Ports_Data",  # each added after an explicit review
+                      "PortWatch_chokepoints_database", "PortWatch_ports_database", "Global_Shipping_Routes"}
     assert pw and all(r.host == "services9.arcgis.com" and r.methods == ("GET",) for r in pw)
     for r in pw:
         pat = r.path_regex.pattern
-        assert pat.startswith("^/weJ1QsnbMYJlCHdG/arcgis/rest/services/") and "FeatureServer/0" in pat
+        assert pat.startswith("^/weJ1QsnbMYJlCHdG/arcgis/rest/services/") and re.search(r"FeatureServer/\d+", pat)
         assert any(f"/services/{layer}/" in pat for layer in allowed_layers), pat
         assert ".*" not in pat and "[^/]+" not in pat, "no wildcard over arcgis services"
     assert p.connectors["portwatch"].credential == "none"

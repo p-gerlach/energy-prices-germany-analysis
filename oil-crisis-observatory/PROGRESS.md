@@ -76,6 +76,18 @@
   (2025 average); US diesel crack ≈ $96/bbl vs $29 median; car fuel HICP +26 % vs 2025 (Aug 2026).
 - Tests: 102 passed.
 
+## World shipping map (2026-10-06)
+- PortWatch extended to all 28 chokepoints and all vessel types (container, dry bulk, general cargo, ro-ro, tanker);
+  backfill 2019-01-01 → 2026-09-27: 588,016 new observations, 86 anonymous requests.
+- New reference collector `portwatch_geo` (3 reviewed query-only routes: chokepoint and port locations, IMF shipping
+  lanes) + Natural Earth land simplified locally. Stored in warehouse meta.
+- Page redesigned as a dashboard: icon rail, KPI strip, world map with timeline playback and region zoom, alerts feed,
+  stacked daily bars, trend line, vessel-mix donut, sortable 28-chokepoint table. Browser check offline: 0 external
+  requests, 0 errors, no overflow (desktop light/dark, phone).
+- Anomaly screening limited to `screen: true` chokepoints; earlier alerts on others marked `not_screened`.
+- Tests: 106 passed.
+- No individual vessel tracks: free per-ship AIS with history is not available on approved routes.
+
 ## Outstanding / next
 - Tankerkönig: once the key arrives, `oco tankerkoenig build-panel` then `oco run-scheduler`.
 - If live Oil Bulletin / JODI layouts differ from the documented ones, collectors report `schema_changed`/`denied` —

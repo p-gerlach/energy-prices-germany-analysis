@@ -299,8 +299,11 @@ def run_anomalies(wh: Warehouse, as_of: datetime | None = None, last_n: int | No
             findings += evaluate_inventory(df, sid, unit, inv_cfg, z_thr, last_n or 8)
     sh_cfg = cfg.get("shipping", {})
     base = sources_config().get("shipping_baseline", {"start": "2025-01-01", "end": "2025-12-31"})
+    screened = {cp["slug"] for cp in sources_config()["sources"].get("portwatch", {}).get("chokepoints", []) if cp.get("screen")}
     for (sid,) in con.execute("SELECT series_id FROM series WHERE source='IMF PortWatch' AND (series_id LIKE '%.n_tanker' OR series_id LIKE '%.n_total' "
             "OR series_id LIKE 'portwatch.port.%')").fetchall():
+        if not sid.startswith("portwatch.port.") and sid.split(".")[1] not in screened:
+            continue  # world-map-only chokepoints are not screened (keeps alerts focused on oil routes)
         df = observations(con, sid, as_of=as_of)
         if not df.empty:
             findings += evaluate_shipping(df, sid, sh_cfg, base, last_n or 21)
@@ -316,6 +319,12 @@ def run_anomalies(wh: Warehouse, as_of: datetime | None = None, last_n: int | No
             al = bulletin_aligned_brent(con, retail["obs_start"], as_of=as_of)
             findings += evaluate_fuel_lag(retail, al, sid, fl_cfg, z_thr, last_n or 6)
     counts = _store(wh, findings, as_of, int(cfg.get("suppress_duplicates_days", 3)))
+    if as_of is None:
+        # chokepoints taken out of screening keep their history but no longer show as active alerts
+        for (aid, sid) in con.execute("SELECT anomaly_id, series_id FROM anomalies WHERE status='active' AND as_of IS NULL "
+                                      "AND series_id LIKE 'portwatch.%' AND series_id NOT LIKE 'portwatch.port.%'").fetchall():
+            if sid.split(".")[1] not in screened:
+                wh.con.execute("UPDATE anomalies SET status='not_screened', superseded_at=? WHERE anomaly_id=?", [now_utc(), aid])
     counts["evaluated"] = len(findings)
     counts["fired"] = sum(f["fired"] for f in findings)
     return counts
