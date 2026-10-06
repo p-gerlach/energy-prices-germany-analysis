@@ -20,7 +20,7 @@ dependencies = [
     "plotly==5.24.1",
     "streamlit==1.40.2",
     "click==8.1.7",
-    "websockets==13.1",
+    "websockets==15.0.1",
 ]
 
 [project.optional-dependencies]

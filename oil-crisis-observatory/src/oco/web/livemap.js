@@ -97,6 +97,15 @@
     } catch (e) { $("status").className = "pill bad"; $("status").textContent = "Viewer lost contact with oco ships — is it still running?"; }
     setTimeout(poll, 3000);
   }
+  // snapshot pages (oco ships --snapshot) carry their positions inside the page and never poll
+  function loadSnapshot(snap) {
+    const now = performance.now();
+    snap.ships.forEach(d => { const [x, y] = merc(d.lo, d.la); ships.set(d.m, { d, fx: x, fy: y, tx: x, ty: y, t0: now - 2000 }); });
+    const el = $("status"); el.className = "pill warn";
+    el.textContent = `Snapshot · ${snap.ships.length.toLocaleString("en-GB")} ships · ${snap.taken} · not live`;
+    $("detail-status").textContent = `Real AIS positions collected for ${Math.round(snap.seconds / 60)} min up to ${snap.taken}. Ages under "Last report" are relative to that time. Run oco ships on your computer for the live map.`;
+    counts(); needsDraw = true;
+  }
   function status(j) {
     const el = $("status"), map = { connected: ["ok", "Live"], connecting: ["warn", "Connecting…"], reconnecting: ["warn", "Reconnecting"], stopped: ["bad", "Stopped"], starting: ["warn", "Starting"] };
     const [c, l] = map[j.status] || ["warn", j.status]; el.className = "pill " + c;
@@ -163,5 +172,5 @@
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { needsDraw = true; });
 
   $("areas").textContent = BOOT.areas.join(", ");
-  resize(); fit(BOOT.boxes); requestAnimationFrame(loop); poll();
+  resize(); fit(BOOT.boxes); requestAnimationFrame(loop); if (BOOT.snapshot) loadSnapshot(BOOT.snapshot); else poll();
 })();

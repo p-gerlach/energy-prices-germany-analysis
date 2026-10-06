@@ -247,8 +247,9 @@ async def run_stream(policy, key: str, boxes: list, store: VesselStore, status: 
     """Keep one subscription open with exponential backoff; stop for good on a provider refusal."""
     policy.check("aisstream", "GET", URL)  # default-deny guard: only the approved websocket route
     if connect is None:
-        import websockets
-        connect = lambda: websockets.connect(URL, max_size=2 ** 20, open_timeout=20, ping_interval=20, ping_timeout=20)  # noqa: E731
+        from websockets.asyncio.client import connect as ws_connect
+        # proxy=True honours HTTPS_PROXY when a network requires one; at home it connects directly
+        connect = lambda: ws_connect(URL, max_size=2 ** 20, open_timeout=20, ping_interval=20, ping_timeout=20, proxy=True)  # noqa: E731
     backoff = min_backoff
     while not stop.is_set():
         try:

@@ -115,3 +115,15 @@ def test_local_server_serves_page_and_snapshot_without_the_key(ctx_factory, monk
     assert "secret-key-xyz" not in page and "secret-key-xyz" not in json.dumps(snap)
     assert "<script src=" not in page and page.count("https://") == page.count("https://www.marinetraffic.com/")
     assert snap["areas"] == ["gulf"] and snap["ships"][0]["k"] == "tanker"
+
+
+def test_snapshot_page_is_dated_not_live_and_has_no_key(ctx_factory, monkeypatch, tmp_path):
+    from oco.live import server
+    monkeypatch.setenv("AISSTREAM_API_KEY", "secret-key-xyz")
+    monkeypatch.setattr(server, "land_for_live", lambda ctx: [])
+    ctx = ctx_factory(lambda r: None)
+    out = server.write_snapshot(ctx, ["gulf"], tmp_path / "snap.html", seconds=1, echo=lambda *a: None,
+                                connect=lambda: FakeWS([pos_msg(538001234, 26.5, 56.3), static_msg(538001234)], []))
+    html = out.read_text()
+    assert "secret-key-xyz" not in html and "Ship Positions Snapshot" in html
+    assert '"snapshot": {"taken"' in html and '"m": 538001234' in html

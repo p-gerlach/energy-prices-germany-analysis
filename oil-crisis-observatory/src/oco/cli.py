@@ -301,14 +301,24 @@ def build_page_cmd(c, out):
 @click.option("--port", default=8765, show_default=True)
 @click.option("--lan", is_flag=True, help="Also reachable from your phone on the same Wi-Fi (http://<computer IP>:PORT).")
 @click.option("--no-browser", is_flag=True, help="Do not open the map in your browser.")
+@click.option("--snapshot", "snapshot_path", default=None, help="Collect for --seconds, then write a dated, self-contained snapshot page here (not live).")
+@click.option("--seconds", default=300, show_default=True, help="Collection time for --snapshot.")
 @click.pass_context
-def ships(c, areas, port, lan, no_browser):
+def ships(c, areas, port, lan, no_browser, snapshot_path, seconds):
     """Live ship positions on a map (needs your own free AISSTREAM_API_KEY). Runs until Ctrl+C."""
     from .live.server import serve
 
     if c.obj["demo"]:
         raise click.ClickException("live ships have no demo mode: they are either live or not shown")
     ctx = _ctx(False)
+    if snapshot_path:
+        from .live.server import write_snapshot
+        try:
+            write_snapshot(ctx, list(areas), Path(snapshot_path), seconds=seconds, echo=click.echo)
+        except (RuntimeError, KeyError) as e:
+            raise click.ClickException(str(e))
+        return
+
     def open_browser():
         if not no_browser:
             import webbrowser

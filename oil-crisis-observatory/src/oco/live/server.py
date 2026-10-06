@@ -41,10 +41,10 @@ def land_for_live(ctx) -> list:
         return []
 
 
-def build_live_page(land: list, areas: list[str], boxes: list, chokepoints: list) -> str:
+def build_live_page(land: list, areas: list[str], boxes: list, chokepoints: list, snapshot: dict | None = None) -> str:
     tpl = (HERE / "live_template.html").read_text(encoding="utf-8")
     js = (HERE / "livemap.js").read_text(encoding="utf-8")
-    boot = json.dumps({"land": land, "areas": areas, "boxes": boxes, "cps": chokepoints}).replace("</", "<\\/")
+    boot = json.dumps({"land": land, "areas": areas, "boxes": boxes, "cps": chokepoints, "snapshot": snapshot}).replace("</", "<\\/")
     return tpl.replace("/*__LIVEMAP__*/", js).replace("__BOOT__", boot)
 
 
@@ -121,3 +121,42 @@ def serve(ctx, areas: list[str], port: int = 8765, lan: bool = False, echo=print
         httpd.server_close()
         t.join(timeout=5)
         echo("[ships] stopped. No live positions are collected until you start it again.")
+
+
+def write_snapshot(ctx, areas: list[str], out: Path, seconds: int = 300, echo=print, connect=None) -> Path:
+    """Collect real positions for `seconds`, then write a self-contained page that shows them as a dated snapshot
+    (never labelled live). The key is used only for the subscription and is never written to the page."""
+    key = env("AISSTREAM_API_KEY")
+    if not key:
+        raise RuntimeError("AISSTREAM_API_KEY is not set (create it yourself at https://aisstream.io/authenticate).")
+    boxes, names = area_boxes(areas)
+    store, status, stop = VesselStore(stale_after_s=max(3600, seconds * 2)), StreamStatus(), threading.Event()
+    t = threading.Thread(target=lambda: asyncio.run(run_stream(ctx.policy, key, boxes, store, status, stop, connect=connect)), daemon=True)
+    t.start()
+    echo(f"[ships] collecting real positions for {seconds} s in {', '.join(names)} …")
+    end = time.time() + seconds
+    while time.time() < end and status.state != "stopped":
+        time.sleep(1)
+    stop.set()
+    t.join(timeout=10)
+    if status.state == "stopped" and store.n_messages == 0:
+        raise RuntimeError(f"no data received: {status.detail}")
+    from datetime import datetime, timezone
+    ships = store.snapshot()
+    taken = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    cps = []
+    try:
+        from ..storage.warehouse import open_snapshot
+        con = open_snapshot(ctx.paths)
+        if con is not None:
+            r = con.execute("SELECT value FROM meta WHERE key='geo.chokepoints'").fetchone()
+            cps = json.loads(r[0])["items"] if r else []
+            con.close()
+    except Exception:  # noqa: BLE001
+        cps = []
+    html = build_live_page(land_for_live(ctx), names, boxes, cps, snapshot={"taken": taken, "seconds": seconds, "ships": ships})
+    html = html.replace("<title>Live Ship Map</title>", "<title>Ship Positions Snapshot</title>")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    echo(f"[ships] wrote {out}: {len(ships)} ships from {store.n_messages} messages, taken {taken}")
+    return out
