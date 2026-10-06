@@ -88,7 +88,18 @@
 - Tests: 106 passed.
 - No individual vessel tracks: free per-ship AIS with history is not available on approved routes.
 
+## Live ships + phone map (2026-10-06)
+- MyShipTracking checked: credit-metered API, only a 10-day trial → excluded (with MarineTraffic API).
+- New `aisstream` connector (free key the user creates; websocket route only, policy now supports `wss` routes) and
+  `oco ships`: foreground local server (127.0.0.1, optional `--lan`), canvas map with ship arrows by class,
+  click details, search, filters, pinch zoom. Key never reaches the browser. Provider errors stop the stream.
+- Verified with a local fake stream (tests + headless browser, desktop/phone/dark); NOT verified against the real
+  service: aisstream.io is not reachable from the cloud session and no key exists yet.
+- Overview map: full-screen button, pinch zoom and drag on phones, labels constant size, no pulsing circles.
+- Tests: 111 passed.
+
 ## Outstanding / next
+- aisstream: user creates key, then `oco ships` live check.
 - Tankerkönig: once the key arrives, `oco tankerkoenig build-panel` then `oco run-scheduler`.
 - If live Oil Bulletin / JODI layouts differ from the documented ones, collectors report `schema_changed`/`denied` —
   adjust parser or policy route after inspecting the real file (explicit review).

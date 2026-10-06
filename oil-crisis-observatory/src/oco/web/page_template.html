@@ -73,16 +73,21 @@ body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);margin:0}
 .seg button+button{border-left:1px solid var(--rule)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.maphost{position:relative;background:var(--water);touch-action:none}
+.maphost{position:relative;background:var(--water);touch-action:pan-y}
+.mappanel.full{position:fixed;inset:0;z-index:100;border-radius:0;border:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.mappanel.full .maphost{flex:1;min-height:0;touch-action:none}
+.mappanel.full .worldsvg{height:100%}
+body.mapfull{overflow:hidden}
+.mapctl button.expand{width:auto;padding:0 10px;font:600 12.5px var(--body)}
 .worldsvg{display:block;width:100%;height:auto;cursor:grab}
 .worldsvg.dragging{cursor:grabbing}
-.bub{stroke:var(--surface);cursor:pointer;opacity:.92;transition:r .25s ease}
+.bub{stroke:var(--surface);cursor:pointer;opacity:.92}
 .bub:hover,.bub.sel{opacity:1;stroke:var(--ink)}
 .bub:focus-visible{outline:none;stroke:var(--accent)}
 .dv-n2{fill:var(--dv-n2)} .dv-n1{fill:var(--dv-n1)} .dv-0{fill:var(--dv-0)} .dv-p1{fill:var(--dv-p1)} .dv-p2{fill:var(--dv-p2)} .dv-na{fill:var(--dv-na)}
 .port{stroke:var(--surface)} .port-bypass{fill:var(--s4)} .port-gulf{fill:var(--s5)}
 .lanes{opacity:.55}
-.maplab{fill:var(--ink2);paint-order:stroke;stroke:var(--water);stroke-width:3px;stroke-linejoin:round;font-family:var(--body);pointer-events:none}
+.maplab{fill:var(--ink2);paint-order:stroke;stroke:var(--water);stroke-linejoin:round;font-family:var(--body);pointer-events:none}
 .maplab.strong{fill:var(--ink);font-weight:700}
 .mapctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
 .mapctl button{all:unset;cursor:pointer;width:30px;height:30px;border-radius:6px;background:var(--surface);border:1px solid var(--rule);display:grid;place-items:center;font:700 16px var(--body);color:var(--ink)}
@@ -165,7 +170,6 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);margin
   .maplegend{position:static;margin:8px;max-width:none}
   .timeline{grid-template-columns:auto minmax(0,1fr)} .trange{grid-column:1/-1}
 }
-@media (prefers-reduced-motion:reduce){.bub{transition:none}}
 </style>
 
 <div class="app">
@@ -188,7 +192,7 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);margin
           <div class="seg" id="regionSeg" role="group" aria-label="Map region"></div>
         </div>
         <div class="maphost" id="map">
-          <div class="mapctl"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zreset" aria-label="Show whole world">⤢</button></div>
+          <div class="mapctl"><button type="button" class="expand" id="zfull" aria-pressed="false">Full screen</button><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zreset" aria-label="Show whole world">⤢</button></div>
           <div class="maplegend" id="maplegend"></div>
         </div>
         <div class="timeline">
@@ -337,7 +341,8 @@ D.sections.forEach(sec => {
   $("#spanSeg").innerHTML = [[90,"90 d"],[365,"1 y"],[100000,"All"]].map(([k,l]) => `<button type="button" data-k="${k}" aria-pressed="${k===span}">${l}</button>`).join("");
   $("#maplegend").innerHTML = `<div class="row"><b style="color:var(--ink)">Circle size</b> transits per day (7-day mean) · <b style="color:var(--ink)">colour</b> vs ${esc(W.base_label)}</div>
     <div class="row">${SHIP.CHANGE.map(c => `<span><i style="background:var(--${c.cls})"></i>${c.label}</span>`).join("")}</div>
-    <div class="row"><span><i class="dia" style="background:var(--s4)"></i>Bypass oil port</span><span><i class="dia" style="background:var(--s5)"></i>Gulf oil port</span><span><i class="ln"></i>Main shipping lanes (IMF drawing, not traffic)</span></div>`;
+    <div class="row"><span><i class="dia" style="background:var(--s4)"></i>Bypass oil port</span><span><i class="dia" style="background:var(--s5)"></i>Gulf oil port</span><span><i class="ln"></i>Main shipping lanes (IMF drawing, not traffic)</span></div>
+    <div class="row">Individual ships, live: run <b style="color:var(--ink)">oco ships</b> on your computer.</div>`;
   const slider = $("#slider"); slider.max = lastI; slider.value = day;
   $("#tevents").innerHTML = W.events.map(e => `<button type="button" data-x="${e.x}">${esc(e.label)} · ${e.x}</button>`).join("") + `<button type="button" data-x="latest">Latest</button>`;
 
@@ -387,6 +392,9 @@ D.sections.forEach(sec => {
   $("#typeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; type = b.dataset.k; pressed($("#typeSeg"), b); setDay(day); });
   $("#spanSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; span = +b.dataset.k; pressed($("#spanSeg"), b); panels(); });
   $("#regionSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; pressed($("#regionSeg"), b); const r = REGIONS.find(x => x[0] === b.dataset.k); if (r[2]) map.focus(r[2][0], r[2][1], r[2][2]); else map.reset(); });
+  $("#zfull").onclick = () => { const mp = $(".mappanel"), on = !mp.classList.contains("full"); mp.classList.toggle("full", on); document.body.classList.toggle("mapfull", on);
+    $("#zfull").textContent = on ? "Close" : "Full screen"; $("#zfull").setAttribute("aria-pressed", on); syncFeed(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && $(".mappanel").classList.contains("full")) $("#zfull").click(); });
   $("#zin").onclick = () => map.zoom(1 / 1.5); $("#zout").onclick = () => map.zoom(1.5); $("#zreset").onclick = () => { map.reset(); pressed($("#regionSeg"), $("#regionSeg button")); };
   slider.addEventListener("input", () => { stop(); setDay(+slider.value, false); });
   slider.addEventListener("change", () => setDay(+slider.value));
@@ -398,7 +406,7 @@ D.sections.forEach(sec => {
     $("#playicon").setAttribute("d", "M3 1.5h3v11H3zM8 1.5h3v11H8z"); $("#play").setAttribute("aria-label", "Pause");
     playing = setInterval(() => { if (day >= lastI) return stop(); setDay(day + 7, false); }, 70);
   });
-  const syncFeed = () => { const mp = $(".mappanel"), f = $("#feed"); f.style.maxHeight = innerWidth > 1100 && mp.offsetHeight ? mp.offsetHeight + "px" : ""; };
+  function syncFeed() { const mp = $(".mappanel"), f = $("#feed"); f.style.maxHeight = innerWidth > 1100 && mp.offsetHeight && !mp.classList.contains("full") ? mp.offsetHeight + "px" : ""; }
   window.addEventListener("resize", syncFeed);
   window.redrawShip = () => { if (!playing) panels(); syncFeed(); };
   setDay(day);

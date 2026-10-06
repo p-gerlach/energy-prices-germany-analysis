@@ -94,10 +94,11 @@
     const ports = W.ports.map(p => { const [x, y] = proj(p.lon, p.lat); return { p, x, y,
       c: el("rect", { x: x - 2, y: y - 2, width: 4, height: 4, class: "port " + (p.group === "bypass" ? "port-bypass" : "port-gulf"), transform: `rotate(45 ${x} ${y})` }, gPorts) }; });
     let state = { i: W.n - 1, type: "all", sel: opts.selected };
-    const k = () => vb.w / home.w;  // keep symbols a constant screen size while zoomed
+    // map units per screen pixel: keeps symbols and labels a constant on-screen size at any zoom or container size
+    const k = () => { const m = svg.getScreenCTM && svg.getScreenCTM(); return m && m.a ? 1 / m.a : vb.w / home.w; };
 
     function label(x, y, text, strong) {
-      const t = el("text", { x: x + 6 * k() + 2 * k(), y: y + 3.5 * k(), "font-size": (strong ? 11 : 10) * k(), class: strong ? "maplab strong" : "maplab" }, gLab);
+      const t = el("text", { x: x + 6 * k() + 2 * k(), y: y + 3.5 * k(), "font-size": (strong ? 11 : 10) * k(), class: strong ? "maplab strong" : "maplab", "stroke-width": 3 * k() }, gLab);
       t.textContent = text;
     }
     function draw() {
@@ -148,20 +149,32 @@
       o.c.addEventListener("pointerleave", () => { tip.hidden = true; });
     });
 
-    // zoom & pan (wheel, drag, pinch-free buttons)
+    // zoom & pan: wheel (with Ctrl/⌘ unless full screen), drag, two-finger pinch, buttons
     function setVB(n) {
-      n.w = Math.min(home.w, Math.max(home.w / 12, n.w)); n.h = n.w * home.h / home.w;
+      n.w = Math.min(home.w, Math.max(home.w / 16, n.w)); n.h = n.w * home.h / home.w;
       n.x = Math.min(home.x + home.w - n.w, Math.max(home.x, n.x)); n.y = Math.min(home.y + home.h - n.h, Math.max(home.y, n.y));
       vb = n; svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); draw();
     }
     function zoomAt(f, cx, cy) { const w = vb.w * f, h = vb.h * f; setVB({ x: cx - (cx - vb.x) * f, y: cy - (cy - vb.y) * f, w, h }); }
-    function toWorld(e) { const r = svg.getBoundingClientRect(); return [vb.x + (e.clientX - r.left) / r.width * vb.w, vb.y + (e.clientY - r.top) / r.height * vb.h]; }
-    svg.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !opts.wheel) return; e.preventDefault(); const [cx, cy] = toWorld(e); zoomAt(e.deltaY > 0 ? 1.2 : 1 / 1.2, cx, cy); }, { passive: false });
-    let drag = null;
-    svg.addEventListener("pointerdown", e => { if (e.target.closest(".bub")) return; drag = { x: e.clientX, y: e.clientY, vb: { ...vb } }; svg.setPointerCapture(e.pointerId); svg.classList.add("dragging"); });
-    svg.addEventListener("pointermove", e => { if (!drag) return; const r = svg.getBoundingClientRect();
-      setVB({ ...drag.vb, x: drag.vb.x - (e.clientX - drag.x) / r.width * vb.w, y: drag.vb.y - (e.clientY - drag.y) / r.height * vb.h }); });
-    const end = () => { drag = null; svg.classList.remove("dragging"); };
+    // screen -> map units through the SVG's own transform (correct even when the map is letterboxed full screen)
+    function toWorldXY(x, y) { const pt = svg.createSVGPoint(); pt.x = x; pt.y = y; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return [q.x, q.y]; }
+    const toWorld = e => toWorldXY(e.clientX, e.clientY);
+    svg.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !opts.wheel && !host.closest(".full")) return; e.preventDefault(); const [cx, cy] = toWorld(e); zoomAt(e.deltaY > 0 ? 1.2 : 1 / 1.2, cx, cy); }, { passive: false });
+    const ptrs = new Map(); let pinch = null, panLast = null;
+    svg.addEventListener("pointerdown", e => {
+      if (e.target.closest(".bub") && e.pointerType === "mouse") return;
+      ptrs.set(e.pointerId, [e.clientX, e.clientY]); try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+      if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), w: vb.w }; panLast = null; }
+      else { panLast = [e.clientX, e.clientY]; svg.classList.add("dragging"); }
+    });
+    svg.addEventListener("pointermove", e => {
+      if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2 && pinch) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d < 10) return;
+        const [cx, cy] = toWorldXY((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); zoomAt((pinch.w * pinch.d / d) / vb.w, cx, cy); return; }
+      if (panLast) { const [x0, y0] = toWorldXY(panLast[0], panLast[1]), [x1, y1] = toWorldXY(e.clientX, e.clientY);
+        panLast = [e.clientX, e.clientY]; setVB({ ...vb, x: vb.x - (x1 - x0), y: vb.y - (y1 - y0) }); }
+    });
+    const end = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (ptrs.size === 0) { panLast = null; svg.classList.remove("dragging"); } };
     svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
     draw();
     return {

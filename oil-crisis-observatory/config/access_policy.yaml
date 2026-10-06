@@ -243,6 +243,28 @@ connectors:
         path_regex: '^/json/(list|prices|detail)\.php$'
         content_types: [application/json]
 
+  aisstream:
+    title: "aisstream.io — free live AIS vessel positions over WebSocket (terrestrial receivers)"
+    credential: aisstream_api_key       # free key; the user signs in at aisstream.io themselves (GitHub login)
+    credential_env: AISSTREAM_API_KEY
+    official_free_setup: "https://aisstream.io/authenticate (sign in, then Account -> create API key)"
+    zero_charge_evidence: "https://aisstream.io/"
+    checked_at: "2026-10-06"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "aisstream.io terms of use; AIS messages from volunteer receivers. Live view only; no redistribution of raw feed."
+    attribution: "Live positions: aisstream.io (terrestrial AIS)"
+    verification_status: documented_free
+    # added 2026-10-06 at the user's explicit request for live ship positions (MyShipTracking's API is paid, see excluded).
+    # The key stays server-side (aisstream does not allow browser connections); the viewer runs on the user's computer.
+    routes:
+      - host: stream.aisstream.io
+        methods: [GET]
+        path_regex: '^/v0/stream$'
+        websocket: true
+        sends_credentials: true
+
   eurostat:
     title: "Eurostat dissemination API — public statistics (imports by origin, HICP)"
     credential: none
@@ -443,6 +465,9 @@ connectors:
 # Routes that are named only to make the exclusion explicit and reportable. They are denied
 # like any unknown route; listing them lets `oco doctor` and the tests show WHY.
 excluded:
+  - {host: api.myshiptracking.com, reason: "credit-metered vessel API; only a 10-day trial is free"}
+  - {host: www.myshiptracking.com, reason: "website data may not be scraped; its API is paid"}
+  - {host: services.marinetraffic.com, reason: "paid vessel-data API"}
   - {host: sh.dataspace.copernicus.eu, reason: "Sentinel Hub Process/Batch/Statistical APIs consume processing units"}
   - {host: services.sentinel-hub.com, reason: "Sentinel Hub commercial processing"}
   - {host: openeo.dataspace.copernicus.eu, reason: "openEO cloud jobs consume credits"}

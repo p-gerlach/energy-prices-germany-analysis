@@ -314,3 +314,16 @@ shipping_baseline:
   start: "2025-01-01"
   end: "2025-12-31"
   label: "calendar 2025 (edit to a period you consider pre-event)"
+
+# Live ship viewer (`oco ships`, needs your own free AISSTREAM_API_KEY). Boxes are [[lat_min, lon_min], [lat_max, lon_max]].
+# Smaller areas = fewer messages. Use `--area world` only on a fast connection.
+ais_live:
+  default_areas: [gulf, red_sea]
+  areas:
+    gulf: {name: "Persian Gulf, Hormuz and Gulf of Oman", box: [[22.0, 47.5], [30.5, 60.5]]}
+    red_sea: {name: "Red Sea, Bab el-Mandeb and Gulf of Aden", box: [[10.5, 32.0], [30.0, 52.0]]}
+    suez_med: {name: "Suez Canal and eastern Mediterranean", box: [[30.0, 25.0], [37.5, 36.5]]}
+    north_sea: {name: "North Sea, Channel and German Bight", box: [[49.0, -6.0], [58.5, 10.5]]}
+    baltic: {name: "Baltic Sea", box: [[53.5, 9.5], [66.0, 30.5]]}
+    malacca: {name: "Strait of Malacca and Singapore", box: [[-1.0, 95.0], [8.0, 105.5]]}
+

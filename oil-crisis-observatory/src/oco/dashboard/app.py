@@ -132,7 +132,7 @@ def export_button(sids, title, key, **kw):
             st.error(f"{type(e).__name__}: {e}")
 
 
-tabs = st.tabs(["Observatory dashboard", "What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
+tabs = st.tabs(["Observatory dashboard", "Live ships", "What changed", "Market", "Shipping", "Fuel prices", "News & Evidence", "Satellite review", "Source health"])
 with tabs[0]:
     page = paths.exports / "observatory.html"
     if page.exists():
@@ -142,7 +142,17 @@ with tabs[0]:
         components.html(page.read_text(encoding="utf-8"), height=1400, scrolling=True)
     else:
         st.info("No research page yet — run `oco analyse` (or `oco build-page`).")
-tabs = tabs[1:]
+with tabs[1]:
+    import urllib.request
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8765/api/ships", timeout=1).read(1)
+        import streamlit.components.v1 as components
+        st.caption("Live AIS positions from `oco ships` (aisstream.io, terrestrial receivers). Open http://127.0.0.1:8765 for full screen.")
+        components.iframe("http://127.0.0.1:8765/", height=760)
+    except OSError:
+        st.info("The live ship map is not running. Put your free AISSTREAM_API_KEY in .env (you create it yourself at "
+                "https://aisstream.io/authenticate), then run `uv run oco ships` in a second terminal and reload this tab.")
+tabs = tabs[2:]
 
 # ------------------------------------------------------------------------------------- What changed
 with tabs[0]:

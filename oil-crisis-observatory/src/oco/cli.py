@@ -295,7 +295,30 @@ def build_page_cmd(c, out):
     click.echo(f"wrote {p} ({p.stat().st_size/1e6:.2f} MB). Open it in any browser; it needs no internet connection.")
 
 
-# ------------------------------------------------------------------ dashboard
+# ------------------------------------------------------------------ live ships
+@main.command()
+@click.option("--area", "areas", multiple=True, help="Area preset from config/sources.yaml (ais_live.areas) or 'world'. Repeatable.")
+@click.option("--port", default=8765, show_default=True)
+@click.option("--lan", is_flag=True, help="Also reachable from your phone on the same Wi-Fi (http://<computer IP>:PORT).")
+@click.option("--no-browser", is_flag=True, help="Do not open the map in your browser.")
+@click.pass_context
+def ships(c, areas, port, lan, no_browser):
+    """Live ship positions on a map (needs your own free AISSTREAM_API_KEY). Runs until Ctrl+C."""
+    from .live.server import serve
+
+    if c.obj["demo"]:
+        raise click.ClickException("live ships have no demo mode: they are either live or not shown")
+    ctx = _ctx(False)
+    def open_browser():
+        if not no_browser:
+            import webbrowser
+            webbrowser.open(f"http://127.0.0.1:{port}")
+    try:
+        serve(ctx, list(areas), port=port, lan=lan, echo=click.echo, on_ready=open_browser)
+    except (RuntimeError, KeyError) as e:
+        raise click.ClickException(str(e))
+
+
 @main.command()
 @click.option("--port", default=8501)
 @click.pass_context

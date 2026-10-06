@@ -54,6 +54,7 @@ class Route:
     port: int | None = None
     sends_credentials: bool = False
     max_response_bytes: int | None = None
+    websocket: bool = False
 
 
 @dataclass
@@ -114,7 +115,7 @@ class Policy:
         if parts.username or parts.password:
             raise PolicyDenied("credentials embedded in URL are not allowed")
         loopback_ok = conn.meta.get("allow_http_loopback") and host in ("127.0.0.1", "localhost")
-        if scheme != "https" and not (scheme == "http" and loopback_ok):
+        if scheme not in ("https", "wss") and not (scheme == "http" and loopback_ok):
             raise PolicyDenied(f"scheme {scheme!r} not allowed for {connector_key}")
         for qk, _ in parse_qsl(parts.query, keep_blank_values=True):
             if qk.lower() in self.forbidden_query_params:
@@ -129,6 +130,8 @@ class Policy:
                 continue
             if method not in r.methods:
                 continue
+            if (scheme == "wss") != r.websocket:
+                continue  # websocket routes are declared separately and only match wss://
             if r.path_regex.match(path):
                 return r
         raise PolicyDenied(
@@ -170,6 +173,7 @@ def _build(raw: dict) -> Policy:
                     port=r.get("port"),
                     sends_credentials=bool(r.get("sends_credentials", False)),
                     max_response_bytes=r.get("max_response_bytes"),
+                    websocket=bool(r.get("websocket", False)),
                 )
             )
         connectors[key] = Connector(key=key, meta=meta, routes=routes)

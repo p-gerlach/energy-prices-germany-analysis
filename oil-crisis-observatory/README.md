@@ -102,6 +102,24 @@ uv run oco build-page
 Only the four oil-route chokepoints (Hormuz, Suez, Bab el-Mandeb, Cape of Good Hope) raise screening alerts; the
 others are on the map for context (`screen: true` in `config/sources.yaml` changes that).
 
+### Live ships (individual vessels, on your computer)
+
+`oco ships` opens a live map of individual ships: arrows point along each ship's heading and glide to every new
+position report; tap or click a ship for its name, type (tanker, cargo, passenger …), flag, speed, course,
+destination, draught, size, MMSI and IMO. Filter by ship type or search by name/MMSI/IMO.
+
+1. Create a free key yourself at https://aisstream.io/authenticate (sign in with GitHub → Account → API key).
+   The app never registers for you.
+2. Add it to `.env`: `AISSTREAM_API_KEY=...`
+3. Run `uv run oco ships` (Gulf + Red Sea by default; `--area north_sea --area baltic`, or `--area world`).
+   It opens http://127.0.0.1:8765. Add `--lan` to watch on your phone in the same Wi-Fi
+   (http://<computer's IP>:8765). Stop with Ctrl+C. The dashboard's "Live ships" tab shows it too.
+
+Why only on your computer: aisstream does not allow browser connections and the key must stay private, so the
+shared web page cannot show live ships. Limits: terrestrial receivers only (ships far offshore are missing); ships
+with AIS switched off (common in the Gulf now) are invisible; names and destinations are typed by crews and can be
+wrong. MyShipTracking and MarineTraffic data APIs are paid and are blocked in the access policy.
+
 ### The research page (charts that always load)
 
 `data/exports/observatory.html` is a single file with **no external resources**: the charts are drawn as SVG by a

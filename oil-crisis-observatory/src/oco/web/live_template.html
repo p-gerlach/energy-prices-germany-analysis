@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Live Ship Map</title>
+<style>
+/* Layout: full-screen map; slim top bar with live status; filter card top-left (collapses on phones);
+   ship details as a side card on desktop and a bottom sheet on phones. Self-contained: system fonts, canvas, no tiles. */
+:root{
+  --bg:#edf0f3; --surface:#ffffff; --ink:#131b23; --ink2:#4d5965; --muted:#7c8793; --rule:#dde2e7; --accent:#2a78d6;
+  --water:#eaf0f5; --land:#cdd5dc; --coast:#aab5bf; --ship-ring:#ffffff;
+  --k-tanker:#2a78d6; --k-cargo:#eb6834; --k-passenger:#4a3aa7; --k-fishing:#eda100; --k-service:#e87ba4; --k-military:#e34948;
+  --k-leisure:#1baf7a; --k-high_speed:#008300; --k-other:#8a949e; --k-unknown:#b5bcc3;
+  --ok:#2b7a4b; --ok-bg:#e8f4ec; --warn:#94680a; --warn-bg:#fbf3df; --bad:#c3352f; --bad-bg:#fbeceb;
+  --body:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a; --accent:#3987e5;
+  --water:#0e161d; --land:#25313b; --coast:#34424f; --ship-ring:#0d1217;
+  --k-tanker:#3987e5; --k-cargo:#d95926; --k-passenger:#9085e9; --k-fishing:#c98500; --k-service:#d55181; --k-military:#e66767;
+  --k-leisure:#199e70; --k-high_speed:#3aa83a; --k-other:#7d8893; --k-unknown:#56616b;
+  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a; --accent:#3987e5;
+  --water:#0e161d; --land:#25313b; --coast:#34424f; --ship-ring:#0d1217;
+  --k-tanker:#3987e5; --k-cargo:#d95926; --k-passenger:#9085e9; --k-fishing:#c98500; --k-service:#d55181; --k-military:#e66767;
+  --k-leisure:#199e70; --k-high_speed:#3aa83a; --k-other:#7d8893; --k-unknown:#56616b;
+  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:calc(8px + env(safe-area-inset-top,0px)) 16px 8px;background:var(--surface);border-bottom:1px solid var(--rule);z-index:5}
+header h1{font:700 16px var(--body);margin:0}
+header .areas{color:var(--ink2);font-size:12.5px}
+.pill{font:600 12px var(--body);padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{color:var(--ok);background:var(--ok-bg)} .pill.warn{color:var(--warn);background:var(--warn-bg)} .pill.bad{color:var(--bad);background:var(--bad-bg)}
+#detail-status{color:var(--ink2);font-size:12.5px;flex-basis:100%}
+#detail-status:empty{display:none}
+main{position:relative;flex:1;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+#filters{position:absolute;left:12px;top:12px;width:250px;padding:10px 12px;max-height:calc(100% - 24px);overflow:auto}
+#filters input[type=search]{width:100%;font:14px var(--body);padding:7px 9px;border:1px solid var(--rule);border-radius:7px;background:var(--bg);color:var(--ink)}
+.cls{display:grid;grid-template-columns:auto 12px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 0;font-size:13px;cursor:pointer}
+.cls input{margin:0;accent-color:var(--accent)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px}
+.ct{font-family:var(--mono);color:var(--ink2);font-variant-numeric:tabular-nums}
+.hint{color:var(--ink2);font-size:12px;margin:8px 0 0}
+#togglefilters{display:none}
+.zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px}
+.zoom button{all:unset;cursor:pointer;width:40px;height:40px;border-radius:9px;background:var(--surface);border:1px solid var(--rule);display:grid;place-items:center;font:700 18px var(--body);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.zoom button:focus-visible,#close:focus-visible{outline:2px solid var(--accent)}
+#panel{position:absolute;right:64px;top:12px;width:320px;padding:14px 16px;max-height:calc(100% - 24px);overflow:auto}
+#panel h2{font:700 19px/1.2 var(--body);margin:2px 0;overflow-wrap:anywhere}
+#panel .kicker{display:flex;gap:7px;align-items:center;font:600 11.5px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--ink2)}
+#panel .sub{color:var(--ink2);margin-bottom:8px}
+#panel .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+#panel .r{display:flex;flex-direction:column;min-width:0}
+#panel .r span{font:600 10.5px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#panel .r b{font:600 13.5px var(--body);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+#panel a{display:inline-block;margin-top:10px;color:var(--accent)}
+#close{all:unset;cursor:pointer;position:absolute;right:10px;top:8px;font:400 22px var(--body);color:var(--ink2);width:30px;height:30px;text-align:center}
+footer{position:absolute;left:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));right:70px;color:var(--ink2);font-size:11.5px;pointer-events:none}
+footer span{background:color-mix(in srgb,var(--surface) 85%,transparent);padding:3px 7px;border-radius:6px;display:inline-block}
+@media (max-width:720px){
+  #filters{width:auto;right:64px;padding:8px 10px}
+  #filters:not(.open) .more{display:none}
+  #togglefilters{all:unset;display:inline-block;cursor:pointer;font:600 12.5px var(--body);color:var(--accent);margin-top:6px}
+  #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:55%;border-radius:14px 14px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  footer{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Live ships</h1><span class="areas">Areas: <span id="areas"></span></span>
+  <span id="status" class="pill warn">Starting…</span>
+  <span id="detail-status"></span>
+</header>
+<main>
+  <canvas id="cv" aria-label="Map of live ship positions. Tap a ship for details."></canvas>
+  <div id="filters" class="card">
+    <input type="search" id="q" placeholder="Find ship by name, MMSI or IMO" aria-label="Find ship">
+    <button type="button" id="togglefilters" aria-expanded="false" aria-controls="classes">Ship types</button>
+    <div class="more"><div id="classes"></div>
+      <p class="hint">Arrow = moving (points along heading). Dot = stopped or anchored. Faded = no report for 15+ minutes.</p></div>
+  </div>
+  <div class="zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" aria-label="Show my areas">⤢</button></div>
+  <div id="panel" class="card" hidden></div>
+  <footer><span>Live AIS via aisstream.io (terrestrial receivers). Ships out of receiver range or with AIS switched off are not shown. Dashed boxes = areas you subscribed to. Land: Natural Earth.</span></footer>
+</main>
+<script>window.LIVE_BOOT = __BOOT__;</script>
+<script>
+/*__LIVEMAP__*/
+</script>
+</body>
+</html>
