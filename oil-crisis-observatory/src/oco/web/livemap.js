@@ -101,9 +101,15 @@
   function loadSnapshot(snap) {
     const now = performance.now();
     snap.ships.forEach(d => { const [x, y] = merc(d.lo, d.la); ships.set(d.m, { d, fx: x, fy: y, tx: x, ty: y, t0: now - 2000 }); });
+    document.querySelector("header h1").textContent = "Ship positions (snapshot)";
+    const fs = document.querySelector("footer span"); if (fs) fs.textContent = fs.textContent.replace("Live AIS", "AIS");
     const el = $("status"); el.className = "pill warn";
     el.textContent = `Snapshot · ${snap.ships.length.toLocaleString("en-GB")} ships · ${snap.taken} · not live`;
     $("detail-status").textContent = `Real AIS positions collected for ${Math.round(snap.seconds / 60)} min up to ${snap.taken}. Ages under "Last report" are relative to that time. Run oco ships on your computer for the live map.`;
+    // open on the subscribed area that actually has the most ships (coverage is very uneven)
+    const inBox = ([[a0, o0], [a1, o1]]) => snap.ships.filter(d => d.la >= a0 && d.la <= a1 && d.lo >= o0 && d.lo <= o1).length;
+    const best = (BOOT.boxes || []).map(b => [inBox(b), b]).sort((a, b) => b[0] - a[0])[0];
+    if (best && best[0]) fit([best[1]]);
     counts(); needsDraw = true;
   }
   function status(j) {

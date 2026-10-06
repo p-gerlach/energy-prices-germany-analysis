@@ -98,8 +98,14 @@
 - Overview map: full-screen button, pinch zoom and drag on phones, labels constant size, no pulsing circles.
 - Tests: 111 passed.
 
+## aisstream live check (2026-10-06, user key, stream.aisstream.io allow-listed)
+- Real stream works through the session proxy (websockets 15). 6-minute snapshot 21:05–21:11 UTC: 25,780 messages,
+  10,520 ships: North Sea/Channel 8,113, Baltic 2,463, Suez/E-Med 375, Malacca 46, Gulf/Hormuz 9, Red Sea 0.
+  aisstream's free receiver network barely covers the Gulf/Red Sea; ship types arrive only with static reports
+  (every ~6 min), so 75% were still "type not yet reported" after 6 minutes.
+- Snapshot page published separately (dated, labelled "not live").
+
 ## Outstanding / next
-- aisstream: user creates key, then `oco ships` live check.
 - Tankerkönig: once the key arrives, `oco tankerkoenig build-panel` then `oco run-scheduler`.
 - If live Oil Bulletin / JODI layouts differ from the documented ones, collectors report `schema_changed`/`denied` —
   adjust parser or policy route after inspecting the real file (explicit review).
