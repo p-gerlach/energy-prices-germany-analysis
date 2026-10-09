@@ -1,0 +1,3 @@
+{"type": "FeatureCollection", "name": "fixed_offshore_structures",
+ "note": "Known FIXED offshore structures (platforms, SPMs, lighthouses) to mask from SAR vessel candidates. Add Point features with a public source link in properties.source. Empty by default — do not invent positions.",
+ "features": []}

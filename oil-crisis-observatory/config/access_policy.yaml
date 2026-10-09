@@ -1,0 +1,483 @@
+# Oil Crisis Observatory — zero-charge access policy (Section 0 of the brief).
+#
+# Every outbound request goes through oco.http.GuardedClient, which checks it against
+# THIS file before any bytes leave the machine. Anything not listed is DENIED.
+#
+# Rules encoded here:
+#   * approval is for the exact host + path pattern + HTTP method, not for a brand/platform
+#   * no connector has a paid tier, trial, processing-credit or billing route
+#   * there is deliberately NO "allow_paid" switch and NO cloud fallback
+#   * changing this file is a policy decision: review it explicitly, never loosen it to make a test pass
+#
+# verification_status (set by humans after an actual permitted fetch, NOT by documentation alone):
+#   documented_free | anonymous_read_tested | authenticated_download_tested | unconfigured | unavailable | excluded
+# The live result of `oco doctor --live` is stored separately in data/state/jobs.sqlite and the
+# connector verification report; this file records only what was checked when the policy was written.
+
+version: 1
+policy_checked_at: "2026-10-05"
+default: deny
+
+global:
+  schemes: [https]
+  # Response text that means "you would have to pay / upgrade / start a trial".
+  # Scanned in unexpected (HTML/error) responses only, never in news article text.
+  stop_markers:
+    - "payment required"
+    - "trial expired"
+    - "trial has expired"
+    - "your trial"
+    - "insufficient credits"
+    - "insufficient processing units"
+    - "processing units exhausted"
+    - "credits exhausted"
+    - "out of credits"
+    - "upgrade your plan"
+    - "upgrade to a paid"
+    - "subscription required"
+    - "purchase credits"
+    - "add a payment method"
+    - "billing account"
+    - "enter your credit card"
+  # 403 bodies that are a provider FIREWALL rate/abuse block (seen live from CDSE on 2026-10-05 after a burst of
+  # catalogue searches). These PAUSE the connector for 30 min; they never trigger retries in a loop or an upgrade.
+  # A 403 without one of these exact phrases on an anonymous route still STOPS the connector (fail closed).
+  throttle_markers:
+    - "this request was rejected due to a violation"
+  # Status codes that permanently stop a connector until a human reviews it.
+  stop_statuses: [402]
+  # Environment variables that must never be read by the application (cloud/paid accounts).
+  forbidden_env_prefixes:
+    - AWS_
+    - GOOGLE_APPLICATION_CREDENTIALS
+    - GCLOUD_
+    - CLOUDSDK_
+    - AZURE_
+    - ARCGIS_
+    - ESRI_
+    - SH_CLIENT_ID
+    - SH_CLIENT_SECRET
+    - SENTINELHUB_
+    - OPENEO_
+    - CREODIAS_
+    - OPENAI_
+    - ANTHROPIC_
+    - MAPBOX_
+  # Query parameters that are never allowed on any request (e.g. ArcGIS user tokens).
+  forbidden_query_params: [token]
+  max_response_bytes: 26214400        # 25 MiB default per response
+  user_agent: "OilCrisisObservatory/0.1 (private research tool; contact: {contact})"
+
+connectors:
+
+  ecb:
+    title: "ECB Data Portal — public SDMX API (exchange rates)"
+    credential: none
+    zero_charge_evidence: "https://data.ecb.europa.eu/help/api/overview"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "ECB statistics reuse policy — free reuse with source attribution"
+    attribution: "Source: European Central Bank (ECB Data Portal)"
+    verification_status: documented_free
+    routes:
+      - host: data-api.ecb.europa.eu
+        methods: [GET]
+        path_regex: '^/service/data/EXR/[A-Z0-9.+]+$'
+        content_types: [text/csv, application/vnd.sdmx.data+csv]
+
+  eia:
+    title: "U.S. EIA Open Data API v2"
+    credential: eia_api_key           # free key, user-supplied
+    credential_env: EIA_API_KEY
+    official_free_setup: "https://www.eia.gov/opendata/register.php"
+    zero_charge_evidence: "https://www.eia.gov/opendata/documentation.php"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "U.S. Government public domain; cite EIA"
+    attribution: "Source: U.S. Energy Information Administration (EIA)"
+    verification_status: documented_free
+    routes:
+      - host: api.eia.gov
+        methods: [GET]
+        path_regex: '^/v2/petroleum(/[a-z0-9]+){1,3}(/data|/facet/[a-z0-9-]+)?/?$'
+        content_types: [application/json]
+
+  eia_release:
+    title: "EIA public release pages (release schedule)"
+    credential: none
+    zero_charge_evidence: "https://www.eia.gov/petroleum/supply/weekly/schedule.php"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "U.S. Government public domain"
+    attribution: "Source: U.S. Energy Information Administration (EIA)"
+    verification_status: documented_free
+    routes:
+      - host: www.eia.gov
+        methods: [GET]
+        path_regex: '^/petroleum/supply/weekly/schedule\.php$'
+        content_types: [text/html]
+
+  oil_bulletin:
+    title: "European Commission Weekly Oil Bulletin — public XLSX attachments"
+    credential: none
+    zero_charge_evidence: "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Commission reuse policy (Decision 2011/833/EU) — reuse with acknowledgement"
+    attribution: "Source: European Commission, Weekly Oil Bulletin"
+    verification_status: documented_free
+    routes:
+      - host: energy.ec.europa.eu
+        methods: [GET]
+        path_regex: '^/data-and-analysis/weekly-oil-bulletin_en$'
+        content_types: [text/html]
+      - host: energy.ec.europa.eu
+        methods: [GET]
+        path_regex: '^/document/download/[0-9a-f-]+_en$'
+        content_types:
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - application/octet-stream
+        max_response_bytes: 52428800
+
+  portwatch:
+    title: "IMF PortWatch — anonymous read-only Daily_Chokepoints_Data FeatureServer layer"
+    credential: none                  # NO ArcGIS account, key or token — ever
+    zero_charge_evidence: "https://www.imf.org/en/news/articles/2023/11/13/pr23390-imf-university-oxford-launch-portwatch-platform-monitor-simulate-trade-disruptions"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "IMF PortWatch terms; data derived from AIS (UN Global Platform). Cite IMF PortWatch."
+    attribution: "Source: IMF PortWatch (portwatch.imf.org), daily chokepoint transit calls"
+    verification_status: documented_free
+    routes:
+      # only this one layer's metadata and query operations; NOT all of arcgis.com
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0(/query)?$'
+        content_types: [application/json, text/plain]
+      # added 2026-10-05 after a reviewed listing of the same IMF account: daily port calls / trade estimates per port
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0(/query)?$'
+        content_types: [application/json, text/plain]
+      # added 2026-10-06 after a reviewed listing of the same IMF account: static reference layers for the world map
+      # (chokepoint and port locations, IMF's global shipping-lane geometry). Query only, anonymous.
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_chokepoints_database/FeatureServer/0/query$'
+        content_types: [application/json, text/plain]
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_ports_database/FeatureServer/0/query$'
+        content_types: [application/json, text/plain]
+      - host: services9.arcgis.com
+        methods: [GET]
+        path_regex: '^/weJ1QsnbMYJlCHdG/arcgis/rest/services/Global_Shipping_Routes/FeatureServer/15/query$'
+        content_types: [application/json, text/plain]
+
+  gdelt:
+    title: "GDELT DOC 2.0 API — public discovery endpoint (artlist)"
+    credential: none
+    zero_charge_evidence: "https://www.gdeltproject.org/"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "GDELT open data; article content belongs to publishers (metadata only stored)"
+    attribution: "Discovery: The GDELT Project"
+    verification_status: documented_free
+    routes:
+      - host: api.gdeltproject.org
+        methods: [GET]
+        path_regex: '^/api/v2/doc/doc$'
+        content_types: [application/json, text/html, text/plain]   # GDELT returns rate-limit text with 200
+
+  rss:
+    title: "Individually admitted public RSS feeds (title/link/excerpt only)"
+    credential: none
+    zero_charge_evidence: "per-feed: publisher's public RSS page"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Publisher terms; only title, link and short feed-provided excerpt are stored"
+    attribution: "Headline via publisher RSS"
+    verification_status: documented_free
+    scan_body_for_stop_markers: false   # news text is untrusted data, not a billing signal
+    # Each feed is an exact URL (no wildcards). Feeds must additionally pass `oco news verify-feeds`
+    # (one bounded fetch proving anonymous, well-formed RSS) before the collector uses them.
+    routes:
+      - {host: www.tagesschau.de, methods: [GET], path_regex: '^/wirtschaft/index~rss2\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
+      - {host: www.tagesschau.de, methods: [GET], path_regex: '^/xml/rss2/?$', content_types: [application/rss+xml, application/xml, text/xml]}
+      - {host: feeds.bbci.co.uk, methods: [GET], path_regex: '^/news/business/rss\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
+      - {host: rss.dw.com, methods: [GET], path_regex: '^/rdf/rss-en-bus$', content_types: [application/rss+xml, application/rdf+xml, application/xml, text/xml]}
+      - {host: www.spiegel.de, methods: [GET], path_regex: '^/wirtschaft/index\.rss$', content_types: [application/rss+xml, application/xml, text/xml]}
+      - {host: www.aljazeera.com, methods: [GET], path_regex: '^/xml/rss/all\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
+      - {host: www.eia.gov, methods: [GET], path_regex: '^/rss/todayinenergy\.xml$', content_types: [application/rss+xml, application/xml, text/xml]}
+
+  tankerkoenig:
+    title: "Tankerkönig API — official German pump prices from the Markttransparenzstelle für Kraftstoffe (MTS-K)"
+    credential: tankerkoenig_api_key   # free key, user-supplied (e-mail registration)
+    credential_env: TANKERKOENIG_API_KEY
+    official_free_setup: "https://creativecommons.tankerkoenig.de/ (API-Key beantragen)"
+    zero_charge_evidence: "https://creativecommons.tankerkoenig.de/"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "CC BY 4.0 (stated in every API response) — attribution: Tankerkönig / MTS-K"
+    attribution: "Source: Tankerkönig (creativecommons.tankerkoenig.de), data: Markttransparenzstelle für Kraftstoffe (MTS-K), CC BY 4.0"
+    verification_status: documented_free
+    routes:
+      - host: creativecommons.tankerkoenig.de
+        methods: [GET]
+        path_regex: '^/json/(list|prices|detail)\.php$'
+        content_types: [application/json]
+
+  aisstream:
+    title: "aisstream.io — free live AIS vessel positions over WebSocket (terrestrial receivers)"
+    credential: aisstream_api_key       # free key; the user signs in at aisstream.io themselves (GitHub login)
+    credential_env: AISSTREAM_API_KEY
+    official_free_setup: "https://aisstream.io/authenticate (sign in, then Account -> create API key)"
+    zero_charge_evidence: "https://aisstream.io/"
+    checked_at: "2026-10-06"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "aisstream.io terms of use; AIS messages from volunteer receivers. Live view only; no redistribution of raw feed."
+    attribution: "Live positions: aisstream.io (terrestrial AIS)"
+    verification_status: documented_free
+    # added 2026-10-06 at the user's explicit request for live ship positions (MyShipTracking's API is paid, see excluded).
+    # The key stays server-side (aisstream does not allow browser connections); the viewer runs on the user's computer.
+    routes:
+      - host: stream.aisstream.io
+        methods: [GET]
+        path_regex: '^/v0/stream$'
+        websocket: true
+        sends_credentials: true
+
+  eurostat:
+    title: "Eurostat dissemination API — public statistics (imports by origin, HICP)"
+    credential: none
+    zero_charge_evidence: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Eurostat reuse policy — free reuse with attribution"
+    attribution: "Source: Eurostat"
+    verification_status: documented_free
+    routes:
+      - host: ec.europa.eu
+        methods: [GET]
+        path_regex: '^/eurostat/api/dissemination/statistics/1\.0/data/[A-Za-z0-9_]+$'
+        content_types: [application/json]
+
+  jodi:
+    title: "JODI Oil World Database — public CSV ZIP downloads"
+    credential: none
+    zero_charge_evidence: "https://www.jodidata.org/oil/database/data-downloads.aspx"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "JODI terms of use — free download, cite JODI"
+    attribution: "Source: JODI Oil World Database (jodidata.org)"
+    verification_status: documented_free
+    routes:
+      - host: www.jodidata.org
+        methods: [GET]
+        path_regex: '^/oil/database/data-downloads\.aspx$'
+        content_types: [text/html]
+      - host: www.jodidata.org
+        methods: [GET]
+        # reviewed 2026-10-05 against the live page: yearly CSVs under annual-csv/(primary|secondary)/ plus ZIP archives
+        path_regex: '^/_resources/files/downloads/oil-data/((annual-csv/(primary|secondary)/[A-Za-z0-9_]+\.csv)|([A-Za-z0-9_\-]+\.zip))$'
+        content_types: [application/zip, application/x-zip-compressed, application/octet-stream, text/csv, text/plain]
+        max_response_bytes: 314572800
+
+  firms:
+    title: "NASA FIRMS — Area CSV API (VIIRS NRT)"
+    credential: firms_map_key         # free MAP_KEY, user-supplied
+    credential_env: FIRMS_MAP_KEY
+    official_free_setup: "https://firms.modaps.eosdis.nasa.gov/api/map_key/"
+    zero_charge_evidence: "https://firms.modaps.eosdis.nasa.gov/api/map_key/"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false   # transaction limit = request rate limit, not a wallet
+    licence: "NASA open data policy; cite FIRMS"
+    attribution: "Source: NASA FIRMS (LANCE VIIRS NRT active fire detections)"
+    verification_status: documented_free
+    routes:
+      - host: firms.modaps.eosdis.nasa.gov
+        methods: [GET]
+        path_regex: '^/api/area/csv/[A-Za-z0-9]+/(VIIRS_SNPP_NRT|VIIRS_NOAA20_NRT|VIIRS_NOAA21_NRT)/-?[0-9.]+,-?[0-9.]+,-?[0-9.]+,-?[0-9.]+/[1-5](/[0-9]{4}-[0-9]{2}-[0-9]{2})?$'
+        content_types: [text/csv, text/plain]
+      - host: firms.modaps.eosdis.nasa.gov
+        methods: [GET]
+        path_regex: '^/mapserver/mapkey_status/$'
+        content_types: [application/json, text/plain, text/html]
+      - host: firms.modaps.eosdis.nasa.gov
+        methods: [GET]
+        path_regex: '^/api/data_availability/csv/[A-Za-z0-9]+/(ALL|VIIRS_SNPP_NRT|VIIRS_NOAA20_NRT|VIIRS_NOAA21_NRT)$'
+        content_types: [text/csv, text/plain]
+
+  cdse_catalogue:
+    title: "Copernicus Data Space Ecosystem — public STAC and OData catalogue (read-only search)"
+    credential: none
+    zero_charge_evidence: "https://dataspace.copernicus.eu/ecosystem/services/data-download"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Copernicus Sentinel data — free, full and open; attribution required"
+    attribution: "Contains modified Copernicus Sentinel data [year]"
+    verification_status: documented_free
+    routes:
+      - host: stac.dataspace.copernicus.eu
+        methods: [GET, POST]
+        path_regex: '^/v1/?(collections/(sentinel-1-grd|sentinel-2-l2a)(/items(/[A-Za-z0-9_.\-]+)?)?|search)?$'
+        content_types: [application/json, application/geo+json]
+      - host: catalogue.dataspace.copernicus.eu
+        methods: [GET]
+        path_regex: '^/odata/v1/Products$'
+        content_types: [application/json]
+
+  cdse_download:
+    title: "Copernicus Data Space Ecosystem — raw product download (OData $value) with free General User login"
+    credential: cdse_general_user      # user-supplied free login; NO processing units, NO paid extension
+    credential_env: [CDSE_USERNAME, CDSE_PASSWORD]
+    official_free_setup: "https://dataspace.copernicus.eu/ (Register -> free General User)"
+    zero_charge_evidence: "https://documentation.dataspace.copernicus.eu/Quotas.html"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Copernicus Sentinel data — free, full and open; attribution required"
+    attribution: "Contains modified Copernicus Sentinel data [year]"
+    verification_status: unconfigured   # authenticated downloads NOT tested — no credential supplied
+    routes:
+      - host: identity.dataspace.copernicus.eu
+        methods: [POST]
+        path_regex: '^/auth/realms/CDSE/protocol/openid-connect/token$'
+        content_types: [application/json]
+        sends_credentials: true
+      - host: download.dataspace.copernicus.eu
+        methods: [GET]
+        path_regex: '^/odata/v1/Products\([0-9a-f-]{36}\)/\$value$'
+        content_types: [application/zip, application/octet-stream]
+        sends_credentials: true
+        max_response_bytes: 2147483648
+      - host: zipper.dataspace.copernicus.eu   # documented OData download host (redirect target)
+        methods: [GET]
+        path_regex: '^/odata/v1/Products\([0-9a-f-]{36}\)/\$value$'
+        content_types: [application/zip, application/octet-stream]
+        sends_credentials: true
+        max_response_bytes: 2147483648
+      - host: catalogue.dataspace.copernicus.eu
+        methods: [GET]
+        path_regex: '^/odata/v1/Products\([0-9a-f-]{36}\)/\$value$'
+        content_types: [application/zip, application/octet-stream]
+        sends_credentials: true
+        max_response_bytes: 2147483648
+
+  naturalearth:
+    title: "Natural Earth public-domain land polygons (coarse coastline context)"
+    credential: none
+    zero_charge_evidence: "https://www.naturalearthdata.com/about/terms-of-use/"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Public domain"
+    attribution: "Made with Natural Earth"
+    verification_status: documented_free
+    routes:
+      - host: naciscdn.org
+        methods: [GET]
+        path_regex: '^/naturalearth/10m/physical/ne_10m_(land|coastline)\.zip$'
+        content_types: [application/zip, application/octet-stream]
+        max_response_bytes: 52428800
+
+  sec_edgar:
+    title: "SEC EDGAR public JSON APIs (optional)"
+    credential: none                   # descriptive User-Agent required, no key
+    zero_charge_evidence: "https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "U.S. Government public data"
+    attribution: "Source: U.S. SEC EDGAR"
+    verification_status: documented_free
+    optional: true
+    routes:
+      - host: data.sec.gov
+        methods: [GET]
+        path_regex: '^/(submissions/CIK[0-9]{10}|api/xbrl/companyfacts/CIK[0-9]{10})\.json$'
+        content_types: [application/json]
+
+  comext:
+    title: "Eurostat Comext — public SDMX 2.1 dissemination API (optional)"
+    credential: none
+    zero_charge_evidence: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-getting-started/comext-database"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "Eurostat reuse policy — free reuse with attribution"
+    attribution: "Source: Eurostat (Comext)"
+    verification_status: documented_free
+    optional: true
+    routes:
+      - host: ec.europa.eu
+        methods: [GET]
+        path_regex: '^/eurostat/api/comext/dissemination/sdmx/2\.1/data/DS-[0-9]+/[A-Za-z0-9.+]+$'
+        content_types: [text/csv, application/vnd.sdmx.data+csv, text/plain]
+
+  local_llm:
+    title: "Optional local model server on this machine (e.g. Ollama) — loopback only"
+    credential: none
+    zero_charge_evidence: "local process; no remote inference"
+    checked_at: "2026-10-05"
+    trial_expiry: none
+    payment_required: false
+    processing_credit_dependence: false
+    licence: "depends on locally installed model weights — user must confirm licence"
+    attribution: "Draft wording by a local model, numbers validated against calculations"
+    verification_status: unconfigured
+    optional: true
+    allow_http_loopback: true
+    routes:
+      - {host: 127.0.0.1, port: 11434, methods: [POST], path_regex: '^/api/generate$', content_types: [application/json, application/x-ndjson]}
+      - {host: localhost, port: 11434, methods: [POST], path_regex: '^/api/generate$', content_types: [application/json, application/x-ndjson]}
+
+# Routes that are named only to make the exclusion explicit and reportable. They are denied
+# like any unknown route; listing them lets `oco doctor` and the tests show WHY.
+excluded:
+  - {host: api.myshiptracking.com, reason: "credit-metered vessel API; only a 10-day trial is free"}
+  - {host: www.myshiptracking.com, reason: "website data may not be scraped; its API is paid"}
+  - {host: services.marinetraffic.com, reason: "paid vessel-data API"}
+  - {host: sh.dataspace.copernicus.eu, reason: "Sentinel Hub Process/Batch/Statistical APIs consume processing units"}
+  - {host: services.sentinel-hub.com, reason: "Sentinel Hub commercial processing"}
+  - {host: openeo.dataspace.copernicus.eu, reason: "openEO cloud jobs consume credits"}
+  - {host: creodias.eu, reason: "CREODIAS commercial services"}
+  - {host: bigquery.googleapis.com, reason: "Google BigQuery is metered; GDELT BigQuery route excluded"}
+  - {host: www.arcgis.com, reason: "ArcGIS Online account/credit services"}
+  - {host: basemaps.arcgis.com, reason: "Esri basemaps"}
+  - {host: geocode.arcgis.com, reason: "Esri geocoding consumes credits"}
+  - {host: api.mapbox.com, reason: "commercial tiles/geocoding"}
+  - {host: maps.googleapis.com, reason: "commercial tiles/geocoding"}
+  - {host: api.openai.com, reason: "remote model inference excluded"}
+  - {host: api.anthropic.com, reason: "remote model inference excluded"}
+  - {host: earthengine.googleapis.com, reason: "cloud processing excluded"}

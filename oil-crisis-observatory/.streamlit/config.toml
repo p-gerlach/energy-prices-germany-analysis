@@ -1,0 +1,9 @@
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"   # hides the hosted "Deploy" button (no cloud deployment in this project)
+
+[server]
+address = "127.0.0.1"
+headless = true
