@@ -10,8 +10,13 @@
   --water:#f1f4f7; --land:#c3ccd4; --coast:#aab5bf; --grat:#e1e7ed; --lane:#8fa6bb;
   --dv-n2:#d03b3b; --dv-n1:#f0a29a; --dv-0:#b9bec4; --dv-p1:#86b6ef; --dv-p2:#2a78d6; --dv-na:#e3e6e9;
   --crit:#c3352f; --crit-bg:#fbeceb; --ok:#2b7a4b; --ok-bg:#e8f4ec; --warn:#94680a; --warn-bg:#fbf3df; --ctx:#55636a; --ctx-bg:#eceff1;
-  --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
-  --body:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  --glass:rgba(255,255,255,.58); --glass-strong:rgba(255,255,255,.78); --glass-border:rgba(255,255,255,.75);
+  --glass-edge:rgba(120,140,180,.18); --glass-shadow:0 10px 36px rgba(40,64,120,.12),0 1px 2px rgba(40,64,120,.06);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.25);
+  --page:radial-gradient(1200px 700px at 8% -10%,#dbe7ff 0%,transparent 60%),radial-gradient(900px 600px at 100% 0%,#efe4ff 0%,transparent 55%),radial-gradient(1000px 800px at 60% 110%,#d9f0ff 0%,transparent 60%),#eef2f9;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a;
@@ -19,14 +24,22 @@
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
   --water:#0f171e; --land:#26323d; --coast:#33414e; --grat:#18222b; --lane:#4d6378;
   --dv-n2:#e66767; --dv-n1:#9a4a4a; --dv-0:#6c737a; --dv-p1:#2d5f9c; --dv-p2:#5598e7; --dv-na:#2b343d;
-  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f; color-scheme:dark}}
+  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f;
+  --glass:rgba(28,34,46,.55); --glass-strong:rgba(36,43,58,.78); --glass-border:rgba(255,255,255,.10);
+  --glass-edge:rgba(255,255,255,.06); --glass-shadow:0 12px 40px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.3);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(255,255,255,.02);
+  --page:radial-gradient(1200px 700px at 8% -10%,#14254a 0%,transparent 60%),radial-gradient(900px 600px at 100% 0%,#2a1a46 0%,transparent 55%),radial-gradient(1000px 800px at 60% 110%,#0c2a3e 0%,transparent 60%),#0a0e16; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a;
   --rail:#080c10; --rail-ink:#8592a0; --rail-on:#ffffff; --accent:#3987e5;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
   --water:#0f171e; --land:#26323d; --coast:#33414e; --grat:#18222b; --lane:#4d6378;
   --dv-n2:#e66767; --dv-n1:#9a4a4a; --dv-0:#6c737a; --dv-p1:#2d5f9c; --dv-p2:#5598e7; --dv-na:#2b343d;
-  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f; color-scheme:dark}
+  --crit:#ef6b65; --crit-bg:#3a1b1a; --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --ctx:#a6b2b7; --ctx-bg:#222a2f;
+  --glass:rgba(28,34,46,.55); --glass-strong:rgba(36,43,58,.78); --glass-border:rgba(255,255,255,.10);
+  --glass-edge:rgba(255,255,255,.06); --glass-shadow:0 12px 40px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.3);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(255,255,255,.02);
+  --page:radial-gradient(1200px 700px at 8% -10%,#14254a 0%,transparent 60%),radial-gradient(900px 600px at 100% 0%,#2a1a46 0%,transparent 55%),radial-gradient(1000px 800px at 60% 110%,#0c2a3e 0%,transparent 60%),#0a0e16; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);margin:0}
@@ -170,6 +183,70 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);margin
   .maplegend{position:static;margin:8px;max-width:none}
   .timeline{grid-template-columns:auto minmax(0,1fr)} .trange{grid-column:1/-1}
 }
+
+/* ---------- Liquid glass layer: translucent, blurred surfaces over a soft colour field ---------- */
+body{background:var(--page);background-attachment:fixed;font-family:var(--body);-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+.panel,.kpi,details.card,.feed,.maplegend,.svgtip,.mapctl button,.rail,.filters button,.seg,.tevents button{
+  background:var(--glass);-webkit-backdrop-filter:blur(26px) saturate(185%);backdrop-filter:blur(26px) saturate(185%);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-hi)}
+.panel,details.card,.feed{border-radius:24px}
+.panel{padding:18px}
+.panel.feed,.panel.mappanel{padding:0}
+.kpi{border-radius:20px;padding:14px 16px}
+.mappanel{padding:0;border-radius:24px}
+.mapbar,.timeline{border-color:var(--glass-edge)}
+.mapbar{padding:12px 16px}
+.timeline{padding:12px 16px}
+.maphost{background:var(--water)}
+/* titles: Apple display face, lighter weight, tight tracking */
+.topbar{padding-block:22px 14px}
+.topbar h1{font:650 28px/1.1 var(--display);letter-spacing:-.028em}
+.topbar h1 span{font-weight:400;color:var(--ink2);letter-spacing:-.02em}
+.vhead h2{font:650 26px/1.15 var(--display);letter-spacing:-.025em;margin:8px 0 4px}
+.panel h3,.feed h3{font:600 16px/1.3 var(--display);letter-spacing:-.012em}
+.kpi .lab{font:500 12.5px var(--body);text-transform:none;letter-spacing:-.005em;color:var(--ink2)}
+.kpi .val{font:600 28px/1.15 var(--display);letter-spacing:-.03em;margin-top:2px}
+.kpi .val small{font:500 12.5px var(--body);letter-spacing:0}
+.tdate{font:600 19px/1 var(--display);letter-spacing:-.02em}
+th,h4,.donutlegend li.hd{font:600 11.5px var(--body);text-transform:none;letter-spacing:0;color:var(--muted)}
+th,td{border-bottom-color:var(--glass-edge)}
+/* rail: floating glass column */
+.app{grid-template-columns:84px minmax(0,1fr)}
+.rail{margin:14px 0 14px 14px;height:calc(100vh - 28px);top:14px;border-radius:28px;padding-block:14px;gap:6px}
+.rail .logo{border-radius:14px;background:linear-gradient(145deg,#4f8ff0,#2a6cd6);box-shadow:0 4px 14px rgba(42,108,214,.35),inset 0 1px 0 rgba(255,255,255,.4);font:700 14px var(--display);letter-spacing:-.02em}
+.rail button{border-radius:16px;color:var(--ink2)}
+.rail button:hover,.rail button:focus-visible{background:var(--glass-strong);color:var(--ink)}
+.rail button[aria-current="true"]{background:var(--glass-strong);color:var(--accent);box-shadow:0 2px 10px rgba(40,64,120,.14),var(--glass-hi)}
+.rail button .tt{background:var(--glass-strong);color:var(--ink);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:10px}
+/* segmented controls: pill track with a raised glass thumb */
+.seg{border-radius:999px;padding:3px;gap:2px;box-shadow:var(--glass-hi)}
+.seg button{border-radius:999px;padding:6px 12px;font:500 12.5px var(--body);color:var(--ink2)}
+.seg button+button{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--glass-strong);color:var(--ink);box-shadow:0 2px 8px rgba(40,64,120,.16),var(--glass-hi)}
+.filters button,.tevents button{border-radius:999px;font-weight:500}
+.filters button[aria-pressed="true"]{background:var(--glass-strong);color:var(--accent);border-color:var(--glass-border)}
+.mapctl{gap:6px}
+.mapctl button{width:34px;height:34px;border-radius:12px;font:500 17px var(--body)}
+.mapctl button.expand{padding:0 12px;font:500 12.5px var(--body)}
+.maplegend{border-radius:16px;padding:10px 12px}
+.svgtip{border-radius:12px;font-family:var(--body);font-variant-numeric:tabular-nums}
+.timeline button.play{background:linear-gradient(145deg,#4f8ff0,#2a6cd6);box-shadow:0 4px 14px rgba(42,108,214,.35),inset 0 1px 0 rgba(255,255,255,.4)}
+.feed h3{background:transparent;-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);border-color:var(--glass-edge);padding:14px 16px 10px}
+.fitem{border-color:var(--glass-edge);padding:12px 16px}
+.chip{border-radius:999px;font:600 10.5px/1 var(--body);letter-spacing:.02em;padding:5px 8px}
+details.card summary{padding:14px 16px}
+tr.pick:hover td{background:var(--glass-strong)}
+tr.pick[aria-selected="true"] td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+footer{border-color:var(--glass-edge)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .panel,.kpi,details.card,.feed,.maplegend,.svgtip,.mapctl button,.rail,.filters button,.seg,.tevents button{background:var(--glass-strong)}}
+@media (max-width:720px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{margin:8px 12px 0;height:auto;top:calc(8px + env(safe-area-inset-top,0px));border-radius:22px;padding:6px 10px}
+  .topbar h1{font-size:23px}
+}
+@media (prefers-reduced-transparency:reduce){
+  .panel,.kpi,details.card,.feed,.maplegend,.svgtip,.mapctl button,.rail,.filters button,.seg,.tevents button{background:var(--glass-strong);-webkit-backdrop-filter:none;backdrop-filter:none}}
 </style>
 
 <div class="app">
@@ -177,7 +254,6 @@ footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);margin
 <div class="main">
   <header class="topbar">
     <h1>Oil Crisis Observatory <span id="vtitle"></span></h1>
-    <div class="asof" id="asof"></div>
   </header>
   <div id="demo" class="demo" hidden>SYNTHETIC DEMONSTRATION DATA — NOT LIVE</div>
   <div class="kpis" id="kpis"></div>
@@ -263,7 +339,6 @@ const IMG = "__IMG__";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt = (v, d=2) => v==null || Number.isNaN(v) ? "–" : Number(v).toLocaleString("en-GB",{minimumFractionDigits:d,maximumFractionDigits:d});
-$("#asof").textContent = "Built " + D.generated + " · all times UTC";
 if (D.demo) $("#demo").hidden = false;
 
 // ---------------- views & rail ----------------

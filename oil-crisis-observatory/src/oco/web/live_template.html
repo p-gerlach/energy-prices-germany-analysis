@@ -13,20 +13,28 @@
   --k-tanker:#2a78d6; --k-cargo:#eb6834; --k-passenger:#4a3aa7; --k-fishing:#eda100; --k-service:#e87ba4; --k-military:#e34948;
   --k-leisure:#1baf7a; --k-high_speed:#008300; --k-other:#8a949e; --k-unknown:#b5bcc3;
   --ok:#2b7a4b; --ok-bg:#e8f4ec; --warn:#94680a; --warn-bg:#fbf3df; --bad:#c3352f; --bad-bg:#fbeceb;
-  --body:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;
+  --display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.8); --glass-border:rgba(255,255,255,.75);
+  --glass-shadow:0 10px 36px rgba(40,64,120,.14),0 1px 2px rgba(40,64,120,.06); --glass-hi:inset 0 1px 0 rgba(255,255,255,.9);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a; --accent:#3987e5;
   --water:#0e161d; --land:#25313b; --coast:#34424f; --ship-ring:#0d1217;
   --k-tanker:#3987e5; --k-cargo:#d95926; --k-passenger:#9085e9; --k-fishing:#c98500; --k-service:#d55181; --k-military:#e66767;
   --k-leisure:#199e70; --k-high_speed:#3aa83a; --k-other:#7d8893; --k-unknown:#56616b;
-  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a; color-scheme:dark}}
+  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a;
+  --glass:rgba(28,34,46,.6); --glass-strong:rgba(36,43,58,.8); --glass-border:rgba(255,255,255,.10);
+  --glass-shadow:0 12px 40px rgba(0,0,0,.45); --glass-hi:inset 0 1px 0 rgba(255,255,255,.08); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1217; --surface:#151c23; --ink:#eef2f5; --ink2:#a7b2bc; --muted:#7d8893; --rule:#26303a; --accent:#3987e5;
   --water:#0e161d; --land:#25313b; --coast:#34424f; --ship-ring:#0d1217;
   --k-tanker:#3987e5; --k-cargo:#d95926; --k-passenger:#9085e9; --k-fishing:#c98500; --k-service:#d55181; --k-military:#e66767;
   --k-leisure:#199e70; --k-high_speed:#3aa83a; --k-other:#7d8893; --k-unknown:#56616b;
-  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a; color-scheme:dark}
+  --ok:#5cc489; --ok-bg:#16301f; --warn:#e2b44a; --warn-bg:#352a10; --bad:#ef6b65; --bad-bg:#3a1b1a;
+  --glass:rgba(28,34,46,.6); --glass-strong:rgba(36,43,58,.8); --glass-border:rgba(255,255,255,.10);
+  --glass-shadow:0 12px 40px rgba(0,0,0,.45); --glass-hi:inset 0 1px 0 rgba(255,255,255,.08); color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);display:flex;flex-direction:column;overflow:hidden}
@@ -70,6 +78,19 @@ footer span{background:color-mix(in srgb,var(--surface) 85%,transparent);padding
   #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:55%;border-radius:14px 14px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
   footer{display:none}
 }
+/* liquid glass: the map runs edge to edge under a floating glass header and glass cards */
+header{margin:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;border-radius:22px;padding:10px 16px;
+  background:var(--glass);-webkit-backdrop-filter:blur(26px) saturate(185%);backdrop-filter:blur(26px) saturate(185%);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-hi)}
+header h1{font:650 18px var(--display);letter-spacing:-.022em}
+main{margin:0 12px calc(12px + env(safe-area-inset-bottom,0px));border-radius:24px;overflow:hidden;border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
+.card,.zoom button,footer span{background:var(--glass);-webkit-backdrop-filter:blur(26px) saturate(185%);backdrop-filter:blur(26px) saturate(185%);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-hi)}
+.card{border-radius:22px}
+.zoom button{border-radius:14px}
+#panel h2{font:650 21px/1.2 var(--display);letter-spacing:-.022em}
+#panel .r span{text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:500}
+#filters input[type=search]{border-radius:12px;background:var(--glass-strong);border-color:var(--glass-border)}
+footer span{border-radius:10px;padding:4px 9px}
+@media (max-width:720px){#panel{top:auto;border-radius:24px 24px 0 0} #detail-status{font-size:12px} header{padding:8px 12px}}
 </style>
 </head>
 <body>
